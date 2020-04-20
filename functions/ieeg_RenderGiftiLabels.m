@@ -1,4 +1,4 @@
-function tH = ecog_RenderGiftiLabels(g,vert_label,cmapInput,roiNames,varargin)
+function tH = ieeg_RenderGiftiLabels(g,vert_label,cmapInput,roiNames,varargin)
 % function to render a gifti 
 % 
 % input:
