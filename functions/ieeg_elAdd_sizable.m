@@ -1,13 +1,19 @@
-function el_add_sizable(els,r2,varargin)
+function ieeg_elAdd_sizable(els,r2,varargin)
 
-% function el_add_withr2size(els,r2)
+% function ieeg_elAdd_sizable(els,r2)
 % 
 % els: rows = electrodes, columns = xyz
 % r2: for size
-% varargin:
-% {1} : maximum for scale (if {''} absmax)
-% example: el_add_withr2size(els,r2,1)
-
+%
+% ieeg_elAdd_sizable(els,r2,maxr2,max_elsize)  
+%
+% optional inputs maxr2 and max_elsize
+%   maxr2 (varargin{1}) maximum for scale (if {''} absmax)
+%       example: el_add_withr2size(els,r2,1)
+%   max_elsize (varargin{2}) maximum electrode size: sometimes we want larger electrodes
+%       default: 45 
+%       example: el_add_withr2size(els,r2,1,45)
+%
 %     Copyright (C) 2006  K.J. Miller & D. Hermes, Dept of Neurology and Neurosurgery, University Medical Center Utrecht
 % 
 %     This program is free software: you can redistribute it and/or modify
@@ -50,8 +56,6 @@ cm2(1:10,2)=[0]';
 cm2(1:10,1)=[0]';
 cm2(20:100,2)=[0:1/80:1]';
 
-elsize=[15:(45-15)/(100-1):45];
-% elsize=[15:(80-15)/(100-1):80];
 
 maxr2=round(max(r2));
 if abs(round(min(r2)))>maxr2
@@ -59,10 +63,19 @@ if abs(round(min(r2)))>maxr2
 end
 
 if isempty(varargin)
-    r2=r2/maxr2;% scaled to absmax
+    r2 = r2/maxr2;% scaled to absmax
 else
-    r2=r2/varargin{1};% scaled to varargin{1}
+    r2 = r2/varargin{1};% scaled to varargin{1}
+    
+    % use varargin{2} to set maximum electrode size
+    if isempty(varargin{2})
+        max_elsize = 45;
+    else
+        max_elsize = varargin{2};
+    end
 end
+
+elsize = [15:(max_elsize-15)/(100-1):max_elsize];
 
 % electrode with r2:
 for k=1:size(els,1)
