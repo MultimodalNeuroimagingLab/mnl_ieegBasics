@@ -24,6 +24,7 @@ function ieeg_label(els,varargin)
 if isempty(varargin)
     msize = 20; % marker size
     fsize = 10; % text font size
+    plot_NameNum = 1;
 else
     if length(varargin)>=1
         msize = varargin{1};
