@@ -71,10 +71,10 @@ x               = xyz(:,1);
 y               = xyz(:,2);
 z               = xyz(:,3);
 size            = NaN(nr_channels,1); % Surface area of electrode in mm
-resected        = NaN(nr_channels,1); % Surface area of electrode in mm
+seizure_zone    = NaN(nr_channels,1); % Surface area of electrode in mm
 
-t = table(name,x,y,z,size,hemisphere,resected);
-clear size x y z name resected% housekeeping
+t = table(name,x,y,z,size,hemisphere,seizure_zone);
+clear size x y z name seizure_zone% housekeeping
 
 pathForSave = fileparts(pomFile);
 
