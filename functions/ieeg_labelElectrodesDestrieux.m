@@ -201,5 +201,5 @@ tDes = table(Destrieux_label,Destrieux_label_text);
 t_new = [loc_info tDes(:,{'Destrieux_label','Destrieux_label_text'})];
 
 if saveNew==1
-    writetable(t_new,loc_info_save,'FileType','text','Delimiter','\t'); 
+    writetable(t_new,electrodes_tsv_name,'FileType','text','Delimiter','\t'); 
 end
