@@ -1,4 +1,4 @@
-function [signalOut,spatfiltmatrix] = ecog_car(signal, chans2incl)
+function [signalOut,spatfiltmatrix] = ieeg_car(signal, chans2incl)
 
 % This function performs Common Avregae Reference (CAR) filtering on a
 % signal

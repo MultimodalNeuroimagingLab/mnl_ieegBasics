@@ -41,7 +41,7 @@ xyz_cu = [];
 for kk = 1:nr_channels
     xyz_cu(kk,1) = aa.Channel(kk).Loc(1)+1; 
     xyz_cu(kk,2) = ni.dim(2)-aa.Channel(kk).Loc(2);%ni.dim(2)-aa.Channel(kk).Loc(2); 
-    xyz_cu(kk,3) = aa.Channel(kk).Loc(3)+1;%aa.Channel(kk).Loc(3)+1; % add 1 because Curry may start counting at zero? 
+    xyz_cu(kk,3) = aa.Channel(kk).Loc(3);%aa.Channel(kk).Loc(3)+1; % add 1 because Curry may start counting at zero? 
 end
 
 % convert to xyz coordinates in the T1 frame
