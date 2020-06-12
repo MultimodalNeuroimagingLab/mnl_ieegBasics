@@ -69,8 +69,8 @@ elCoords = elCoords(1:3,:)';
 % set(tH,'FaceAlpha',.5) % make transparent
 
 % subject sphere
-[Lsubsphere_vert] = read_surf(fullfile(FSdir,'surf','lh.sphere'));
-[Rsubsphere_vert] = read_surf(fullfile(FSdir,'surf','rh.sphere'));
+[Lsubsphere_vert] = read_surf(fullfile(FSdir,'surf','lh.sphere.reg'));
+[Rsubsphere_vert] = read_surf(fullfile(FSdir,'surf','rh.sphere.reg'));
 
 % mni305 sphere
 [Lmnisphere_vert] = read_surf(fullfile(FSsubjectsdir,'fsaverage','surf','lh.sphere'));
