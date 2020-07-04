@@ -1,4 +1,4 @@
-function [t] = ieeg_curry2tsv(t1File,pomFile)
+function [t] = ieeg_curry2tsv(t1File,pomFile,flip_xyz)
 %
 % Function writes a tsv file with electrodes names and xyz coordinates that
 % should match the T1. 
@@ -6,15 +6,17 @@ function [t] = ieeg_curry2tsv(t1File,pomFile)
 % Inputs
 %   t1File: name of the t1File that was used to localize electrodes
 %   pomFile: name of the .pom file created by Curry with electrodes in XYNo coordinates
+%   flip_xyz: do x,y,z coordinates need to be flipped?
 %
 % Outputs
 %   t: table with name, x, y, z, size of electrodes
 %       size is n/a 
 %
 %
-% [t] = ieeg_curry2tsv(t1File,pomFile)
+% [t] = ieeg_curry2tsv(t1File,pomFile,[0 0 1])
 %
 % dhermes, Multimodal Neuroimaging Lab, Mayo Clinic, 2020
+
 
 if isempty(t1File)
     disp('select T1 nifti file')
@@ -30,6 +32,9 @@ if isempty(pomFile)
     pomFile = [PATHNAME,FILENAME];
 end
 
+if isempty(flip_xyz)
+    flip_xyz = [0 0 0];
+end
 
 % load the nifti file
 ni = niftiRead(t1File);
@@ -39,9 +44,21 @@ aa = ieeg_inchannel_curry_pom(pomFile);
 nr_channels = length(aa.Channel);
 xyz_cu = [];
 for kk = 1:nr_channels
-    xyz_cu(kk,1) = aa.Channel(kk).Loc(1)+1; 
-    xyz_cu(kk,2) = ni.dim(2)-aa.Channel(kk).Loc(2);%ni.dim(2)-aa.Channel(kk).Loc(2); 
-    xyz_cu(kk,3) = ni.dim(3)-aa.Channel(kk).Loc(3);%aa.Channel(kk).Loc(3)+1; % add 1 because Curry may start counting at zero? 
+    if flip_xyz(1)==1
+        xyz_cu(kk,1) = ni.dim(1)-aa.Channel(kk).Loc(1); 
+    else
+        xyz_cu(kk,1) = aa.Channel(kk).Loc(1)+1; 
+    end
+    if flip_xyz(2)==1
+        xyz_cu(kk,2) = ni.dim(2)-aa.Channel(kk).Loc(2);%ni.dim(2)-aa.Channel(kk).Loc(2); 
+    else
+        xyz_cu(kk,2) = aa.Channel(kk).Loc(2)+1;%ni.dim(2)-aa.Channel(kk).Loc(2); 
+    end
+    if flip_xyz(3)==1
+        xyz_cu(kk,3) = ni.dim(3)-aa.Channel(kk).Loc(3);%aa.Channel(kk).Loc(3)+1; % add 1 because Curry may start counting at zero? 
+    else
+        xyz_cu(kk,3) = aa.Channel(kk).Loc(3)+1;
+    end
 end
 
 % convert to xyz coordinates in the T1 frame
