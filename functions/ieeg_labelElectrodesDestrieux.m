@@ -171,12 +171,12 @@ for elec = 1:size(elecmatrix,1) % loop across electrodes
                 temp_labels(temp_labels==41) = [];
                 thisLabel = mode(temp_labels);
             end
-        elseif thisLabel == 0
+        elseif thisLabel == 0 % if CSF, use other label if 10% of voxels have another label
             other_fraction = length(find(niDestrieux.data(temp.electrode==1)==0))./...
                 length(niDestrieux.data(temp.electrode==1));
-            if other_fraction<.7 % close to WM, but use other label
+            if other_fraction<.90 % 
                 temp_labels = niDestrieux.data(temp.electrode==1);
-                temp_labels(temp_labels==0) = [];
+                temp_labels(temp_labels==0) = []; % remove zero labels
                 thisLabel = mode(temp_labels);
             end
         end
@@ -197,8 +197,14 @@ for elec = 1:size(elecmatrix,1) % loop across electrodes
 end
 
 % append Destrieux columns to loc_info
-tDes = table(Destrieux_label,Destrieux_label_text);
-t_new = [loc_info tDes(:,{'Destrieux_label','Destrieux_label_text'})];
+if ~ismember('Destrieux_label',loc_info.Properties.VariableNames)
+    tDes = table(Destrieux_label,Destrieux_label_text);
+    t_new = [loc_info tDes(:,{'Destrieux_label','Destrieux_label_text'})];
+else
+    t_new = loc_info;
+    t_new.Destrieux_label = Destrieux_label;
+    t_new.Destrieux_label_text = Destrieux_label_text;
+end
 
 if saveNew==1
     writetable(t_new,electrodes_tsv_name,'FileType','text','Delimiter','\t'); 
