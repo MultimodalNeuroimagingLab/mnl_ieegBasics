@@ -1,4 +1,4 @@
-function [t_new] = ieeg_labelElectrodesDestrieux(FSdir,electrodes_tsv_name,saveNew)
+function [t_new] = ieeg_labelElectrodesDestrieux(FSdir,electrodes_tsv_name,saveNew,circleradius)
 %
 % this script labels electrodes based on the Destrieux Atlas from
 % Freesurfer
@@ -44,7 +44,10 @@ Destrieux_label_text = cell(size(elecmatrix,1),1);
 
 %%% LOOP THROUGH ELECTRODES AND ASSIGN LABELS
 % for every electrode, look up the most common label within 2 mm radius
-circleradius = 3; % millimeters
+if isempty(circleradius)
+    % use default
+    circleradius = 3; % millimeters
+end
 voxelsize = niDestrieux.pixdim;
 
 % electrodes xyz to indices
