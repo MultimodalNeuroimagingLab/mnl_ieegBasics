@@ -1,7 +1,11 @@
-% function to dobandpass filtering for specified band
-% input:
-% signal = time X channels;
-% band= [start:stop] or [start stop];
+%  Bandpass filtering for specified band
+%
+%  ieeg_butterpass(signal, band, srate, silent)
+% 
+%      signal       = time X channels;
+%      band         = [start:stop] or [start stop];
+%      silent       = [optional] flag whether be non verbose
+%
 function [band_sig] = ieeg_butterpass(signal, band, srate, silent)
     if exist('silent', 'var') == 0,  silent = 0;     end
     

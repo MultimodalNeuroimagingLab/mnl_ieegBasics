@@ -1,10 +1,11 @@
-% common average referencing flunction with regressing out the mean, rather
-% than subtracting out the mean
+%  Common average referencing flunction with regressing out the mean, rather
+%  than subtracting out the mean
 %
-% [signal] = ecog_carRegress(signal, chans2incl)
+%  [signal] = ieeg_carRegress(signal, chans2incl, silent)
 %
-% signal = electrodes X samples
-% chans2incl: channels to include in CAR
+%      signal       = electrodes X samples
+%      chans2incl   = channels to include in CAR
+%      silent       = [optional] flag whether be non verbose
 %
 % dh - Oct 2010
 % 
