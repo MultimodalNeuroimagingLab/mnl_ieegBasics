@@ -50,19 +50,19 @@ for kk = 1:nr_channels
         xyz_cu(kk,1) = aa.Channel(kk).Loc(1)+1; 
     end
     if flip_xyz(2)==1
-        xyz_cu(kk,2) = ni.dim(2)-aa.Channel(kk).Loc(2);%ni.dim(2)-aa.Channel(kk).Loc(2); 
+        xyz_cu(kk,2) = ni.dim(2)-aa.Channel(kk).Loc(2);
     else
-        xyz_cu(kk,2) = aa.Channel(kk).Loc(2)+1;%ni.dim(2)-aa.Channel(kk).Loc(2); 
+        xyz_cu(kk,2) = aa.Channel(kk).Loc(2)+1;
     end
     if flip_xyz(3)==1
-        xyz_cu(kk,3) = ni.dim(3)-aa.Channel(kk).Loc(3);%aa.Channel(kk).Loc(3)+1; % add 1 because Curry may start counting at zero? 
+        xyz_cu(kk,3) = ni.dim(3)-aa.Channel(kk).Loc(3);
     else
-        xyz_cu(kk,3) = aa.Channel(kk).Loc(3)+1;
+        xyz_cu(kk,3) = aa.Channel(kk).Loc(3)+1;% add 1 because Curry may start counting at zero? 
     end
 end
 
 % convert to xyz coordinates in the T1 frame
-xyz = ni.qto_xyz * [xyz_cu(:,1) xyz_cu(:,2) xyz_cu(:,3) ones(length(xyz_cu),1)]';
+xyz = ni.sto_xyz * [xyz_cu(:,1) xyz_cu(:,2) xyz_cu(:,3) ones(length(xyz_cu),1)]';
 xyz = xyz(1:3,:)';
 
 %%

@@ -149,6 +149,7 @@ end
 % initialize output
 ni = data;
 ni.data = temp.electrode;
+ni.scl_inter = 0; % always set intercept to zero to have electrodes be 1 and zero background
 
 disp('select output dir')
 DIRECTORYNAME = uigetdir(pwd, 'select output directory');

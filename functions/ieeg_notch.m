@@ -1,8 +1,9 @@
-function data = ecog_notch(data,srate,notch_freq)
+function data = ieeg_notch(data,srate,notch_freq)
 
-% data = ecog_notch(data,srate)
-% notch filter data around 60Hz, 120Hz and 180Hz
+% data = ecog_notch(data,srate,notch_freq)
 % data is time X electrodes
+% srate: samplingfrequency
+% notch filter data for 50Hz (50 100 150) or 60Hz (60Hz, 120Hz and 180Hz)
 %
 % DH 2018
 
