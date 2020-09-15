@@ -1,5 +1,6 @@
 
 # no mac stuff in the git
+*~
 .AppleDouble
 .LSOverride
 .DS_Store
@@ -11,9 +12,11 @@ __MACOSX
 desktop.ini
 **/desktop.ini
 
-# No data files
-*.mat
-
-# No matlab backup scripts 
+# No matlab metafiles
 *.m~
 *.asv
+*.ps
+
+# Do not safe data files
+*.mat
+
