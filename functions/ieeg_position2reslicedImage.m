@@ -38,7 +38,7 @@ end
 data = niftiRead(fname);
 
 % convert electrodes from native 2 indices
-els_ind = data.qto_ijk * [els ones(size(els,1),1)]';
+els_ind = data.sto_ijk * [els ones(size(els,1),1)]';
 els_ind = round(els_ind(1:3,:)');
 
 temp.electrode = zeros(size(data.data));
