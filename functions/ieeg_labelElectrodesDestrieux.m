@@ -182,6 +182,14 @@ for elec = 1:size(elecmatrix,1) % loop across electrodes
                 temp_labels(temp_labels==0) = []; % remove zero labels
                 thisLabel = mode(temp_labels);
             end
+        elseif thisLabel == 8 || thisLabel == 47  % Cerebellum
+            other_fraction = length(find(ismember(niDestrieux.data(temp.electrode==1),[8 47])))./...
+                length(niDestrieux.data(temp.electrode==1));
+            if other_fraction<.90 
+                temp_labels = niDestrieux.data(temp.electrode==1);
+                temp_labels(ismember(temp_labels,[8 47])) = []; % remove 8 and 47 cerebellar labels
+                thisLabel = mode(temp_labels);
+            end
         end
 
         Destrieux_label(elec) = double(thisLabel);
