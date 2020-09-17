@@ -18,6 +18,21 @@
 %   Returns:
 %       V_new   = 1xn time series equal to V after subtracting the CAR
 %
+%   Example:
+%       
+%       % set up time interval = [-1s, 4s]
+%       epoch_length = 5; epoch_prestim_length = 1; % in s
+%       tt = (1:epoch_length*srate)/srate - epoch_prestim_length;
+%
+%       [~, V] = readMef3(fileName, [], {'LMS2'}, 'samples', [1042583 1052823]); % Epoch from channel LMS2 matching length of tt
+%       [~, V_all] = readMef3(fileName, [], [], 'samples', [1042583 1052823]); % load same epoch for all channels
+%
+%       [~, start_idx] = find(tt>0.1, 1, 'first'); % use t=[100ms, 2s] to calculate least-squares ordering of channels for CAR
+%       [~, end_idx] = find(tt<2, 1, 'last');
+%
+%       exc_rows = [3, 4]; % stimulated pair matches channels 3, 4
+%       V = ieeg_subtractCAR(V, V_all, exc_rows, [start_idx, end_idx]); % adjust V by subtracting CAR
+%
 function V_new = ieeg_subtractCAR(V, V_all, exc_rows, range, p)
     
     if nargin<5
