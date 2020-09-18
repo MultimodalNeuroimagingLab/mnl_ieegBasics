@@ -33,6 +33,8 @@
 %       exc_rows = [3, 4]; % stimulated pair matches channels 3, 4
 %       V = ieeg_subtractCAR(V, V_all, exc_rows, [start_idx, end_idx]); % adjust V by subtracting CAR
 %
+%       Harvey Huang 2020
+%
 function V_new = ieeg_subtractCAR(V, V_all, exc_rows, range, p)
     
     if nargin<5
