@@ -156,7 +156,7 @@ for elec = 1:size(elecmatrix,1) % loop across electrodes
         % get the label using the mode:
         thisLabel = double(mode(niDestrieux.data(temp.electrode==1)));
 
-        % if <60% white matter, use the most common label of other voxels
+        % if <70% white matter, use the most common label of other voxels
         % 2 is label for left WM, 41 is label for right WM
         if thisLabel == 2
             wm_fraction = length(find(niDestrieux.data(temp.electrode==1)==2))./...

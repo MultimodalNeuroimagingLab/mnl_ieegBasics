@@ -1,4 +1,4 @@
-function [band_sig]=butterlowpass_eeglabdata(signal,band,srate)
+function [band_sig] = ieeg_butterlowpass(signal,band,srate)
 % function to do lowpass filtering for specified band
 % input:
 % signal = time X channels;
