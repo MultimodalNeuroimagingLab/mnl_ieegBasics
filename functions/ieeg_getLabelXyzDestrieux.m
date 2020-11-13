@@ -19,7 +19,7 @@
 
 function [labs, labs_val] = ieeg_getLabelXyzDestrieux(xyzs, FSdir, hemi, rad)
     if nargin < 4, rad = 3; end % circle radius
-    if nargin < 3, hemi = 'left'; end % brain hemisphere to which xyz coordinates belong 
+    if nargin < 3 || isempty(hemi), hemi = 'left'; end % brain hemisphere to which xyz coordinates belong 
     
     %% load files
     niDestrieux = niftiRead(fullfile(FSdir, 'mri', 'aparc.a2009s+aseg.nii.gz')); % labelled nifti
