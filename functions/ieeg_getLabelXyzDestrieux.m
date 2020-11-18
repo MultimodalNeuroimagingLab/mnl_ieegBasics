@@ -3,11 +3,10 @@
 %   Requires vistasoft
 %
 %   labs = ieeg_getLabelXyzDestrieux(xyzs, FSdir)
-%   [labs, labs_val] = ieeg_getLabelXyzDestrieux(xyzs, FSdir, hemi, rad)
+%   [labs, labs_val] = ieeg_getLabelXyzDestrieux(xyzs, FSdir, rad)
 %       
 %       xyzs =              nx3 array of n [x, y, z] coordinates
 %       FSdir =             path to FreeSurfer directory for the current subject; e.g. */derivatives/freesurfer/sub-<subject>
-%       hemi (optional) =   string: 'left', 'L', 'l' or 'right', etc. corresponding to hemisphere of subject. 'left' by default
 %       rad (optional) =    radius in mm to search for labels. 3 by default
 %
 %   Returns:
@@ -17,14 +16,13 @@
 %   Adapted from 'mnl_ieegBasics/functions/ieeg_labelElectrodesDestrieux.m' on 11/12/2020 by HH
 %
 
-function [labs, labs_val] = ieeg_getLabelXyzDestrieux(xyzs, FSdir, hemi, rad)
-    if nargin < 4, rad = 3; end % circle radius
-    if nargin < 3 || isempty(hemi), hemi = 'left'; end % brain hemisphere to which xyz coordinates belong 
+function [labs, labs_val] = ieeg_getLabelXyzDestrieux(xyzs, FSdir, rad)
+    if nargin < 3, rad = 3; end % circle radius
     
     %% load files
     niDestrieux = niftiRead(fullfile(FSdir, 'mri', 'aparc.a2009s+aseg.nii.gz')); % labelled nifti
 
-    [~, ~, colortable_Destrieux] = read_annotation(fullfile(FSdir, 'label', sprintf('%sh.aparc.a2009s.annot', lower(hemi(1)))));
+    [~, ~, colortable_Destrieux] = read_annotation(fullfile(FSdir, 'label', 'lh.aparc.a2009s.annot')); % hemisphere-agnostic; use 'l' by default
 
     subcortical_labels = readtable(fullfile(FSdir,'mri',...
         'aseg.auto_noCCseg.label_intensities.txt'),...
