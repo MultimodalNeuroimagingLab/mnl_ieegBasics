@@ -23,7 +23,7 @@ function setOut = ieeg_trimElSet(setIn, dists, minDist)
     else
         [~, toRemove] = min(min(subDists)); % remove (1st) index with closest distance to another
         setIn(toRemove) = [];
-        setOut = trimElSet(setIn, dists, minDist);
+        setOut = ieeg_trimElSet(setIn, dists, minDist);
     end
     
 end
