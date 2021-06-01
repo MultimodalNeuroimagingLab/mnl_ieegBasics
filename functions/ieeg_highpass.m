@@ -1,4 +1,24 @@
 function [signal_hp] = ieeg_highpass(signal,srate)
+%
+% function [signal_hp] = ieeg_highpass(signal,srate)
+%
+% highpass filters the data to deal with DC
+%
+% inputs
+% signal: time X channel
+% srate: sampling frequency
+%
+% output
+% signal_hp: time X channel
+%
+% code adapted from Brunner lab
+% DH
+
+
+if size(signal,1)<size(signal,2)
+    disp('data may be channels X time, transposing matrix and returning time X channels')
+    signal = signal';
+end
 
 parameters.SamplingRate.NumericValue = srate;
 
