@@ -56,7 +56,7 @@ function xyzMni = ieeg_getXyzMni(xyz, image, deformPath, rootdir, minDist)
     counter = 1;
     while ~isempty(remainingElecs)
         
-        idx = trimElSet(remainingElecs, dists, minDist); % array of electrode indices assigned to current subset
+        idx = ieeg_trimElSet(remainingElecs, dists, minDist); % array of electrode indices assigned to current subset
         xyzStruct(counter).idx = idx;
         xyzStruct(counter).xyz = xyz(idx, :);
         remainingElecs = setdiff(remainingElecs, idx);
