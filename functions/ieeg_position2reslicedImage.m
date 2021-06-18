@@ -140,11 +140,20 @@ for elec = 1:size(els_ind,1)
         % clip elecbox if it does not fit in the nifti (at edges)
         minidata.elecbox = minidata.elecbox(diffxmin:end-diffxmax,diffymin:end-diffymax,diffzmin:end-diffzmax);
         
+        % first get values from coordinates where we want to add an
+        % electrode:
+        previous_values_minibox = temp.electrode(els_ind(elec,1)-temp.xmindefine:els_ind(elec,1)+temp.xmaxdefine,...
+            els_ind(elec,2)-temp.ymindefine:els_ind(elec,2)+temp.ymaxdefine,...
+            els_ind(elec,3)-temp.zmindefine:els_ind(elec,3)+temp.zmaxdefine);
+        
+        new_minibox = max(cat(4,minidata.elecbox,previous_values_minibox),[],4);
+        
         % for each electrode draw circle
         temp.electrode(els_ind(elec,1)-temp.xmindefine:els_ind(elec,1)+temp.xmaxdefine,...
             els_ind(elec,2)-temp.ymindefine:els_ind(elec,2)+temp.ymaxdefine,...
             els_ind(elec,3)-temp.zmindefine:els_ind(elec,3)+temp.zmaxdefine) = ...
-            minidata.elecbox;
+            new_minibox;
+        clear new_minibox 
         if temp.electrode(els_ind(elec,1),els_ind(elec,2),els_ind(elec,3))~=0.7
             disp(['error' int2str(elec)])
         end
