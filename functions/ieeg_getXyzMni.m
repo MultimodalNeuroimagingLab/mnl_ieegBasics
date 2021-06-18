@@ -16,11 +16,11 @@
 %   xyzMni = getXyzMni(xyz, image, warpPath, rootdir, minDist);
 %   xyzMni = getXyzMni(xyz, image, warpPath, rootdir);
 %       xyz =       nx3 double, native coordinates to transform, where each row is a separate coordinate and columns are [x, y, z]. 
-%       image =     1x1 nifti, image of the brain volume where the native <xyz> coordinates reside. This image is needed
+%       niImage =   1x1 nifti, image of the brain volume where the native <xyz> coordinates reside. This image is needed
 %                       to get 1) the dimensions of the brain volume (image.dim) and 2) the transformation matrix
 %                       (image.mat) to go from voxels <-> position
-%       deformPath =1x1 str, PATH to MNI forward deformation nifti image, which is obtained from SPM segmentation.
-%                       MUST begin with 'y_' (default SPM12 output)
+%                   The path/y_niImage.nii deformation field should
+%                       exist.
 %       rootdir =   1x1 str, directory to save & load electrode nifti images. A new folder will be created within <rootdir>
 %       minDist =   1x1 double (optional), minimum distance (mm) allowed between coordinates in each coordinate subset.
 %                       Default = 8. Mathematically, <minDist> should be greater than 2*sqrt(3)*1.5 = 5.2 to because
@@ -32,8 +32,14 @@
 %
 %   HH 2021
 %
-function xyzMni = ieeg_getXyzMni(xyz, image, deformPath, rootdir, minDist)
+function xyzMni = ieeg_getXyzMni(xyz, niImageName, rootdir, minDist)
     
+    if ~exist('spm_vol.m','file')
+        error('make sure spm is in your path')
+    else
+        niImage = spm_vol(niImageName);
+    end   
+
     if nargin < 5, minDist = 8; end
     if minDist <= 2*sqrt(3)*1.5, warning('low minDist specified may result in inaccurate smoothing of coordinates'); end
     
@@ -43,7 +49,7 @@ function xyzMni = ieeg_getXyzMni(xyz, image, deformPath, rootdir, minDist)
     % Remove nan coordinates, but track where (non)nan elements are to repropagate at the end
     origLength = size(xyz, 1);
     nonNanBool = ~any(isnan(xyz), 2);
-    xyz(any(isnan(xyz), 2)) = [];
+    xyz(any(isnan(xyz), 2),:) = [];
     fprintf('\nGetting MNI coords for %d entries; %d nans.\nUsing minDist = %d.\nSaving images to:\n%s\n\n', size(xyz, 1), sum(~nonNanBool), minDist, outdir);
 
     %% Separate coordinates into multiple subsets so that all electrodes are at least <minDist> apart in each subset
@@ -68,14 +74,15 @@ function xyzMni = ieeg_getXyzMni(xyz, image, deformPath, rootdir, minDist)
     %% Create smoothed nifti images from each electrode subset
     
     disp('Saving native coordinate nifti images...');
-    dataOut = image; % use input image as template for electrode image outputs
+    dataOut = niImage; % use input image as template for electrode image outputs
     for ii = 1:length(xyzStruct)
         
         idx = xyzStruct(ii).idx; % electrode indices in current set
-        vol = zeros(image.dim); % volume to put electrodes in
+        vol = zeros(niImage.dim); % volume to put electrodes in
         
         % transform xyz positions to (nearest) voxel indices
-        xyz_ind = round([xyzStruct(ii).xyz ones(length(idx), 1)] * inv(image.mat')); xyz_ind(:, 4) = [];
+        xyz_ind = round([xyzStruct(ii).xyz ones(length(idx), 1)] * inv(niImage.mat')); 
+        xyz_ind(:, 4) = [];
         for jj = 1:length(idx)
             vol(xyz_ind(jj, 1), xyz_ind(jj, 2), xyz_ind(jj, 3)) = idx(jj); % assign electrode index as "identity" of voxel
         end
@@ -95,7 +102,8 @@ function xyzMni = ieeg_getXyzMni(xyz, image, deformPath, rootdir, minDist)
     
     % SPM requires the forward deform file path to be given without the 'y_' prefix, which is complete
     % baloney. So we have to do this convoluted step of removing 2 characters from the file name. Dumb.
-    d = dir(deformPath); deformPathEdited = fullfile(d.folder, d.name(3:end));
+    % d = dir(deformPath); deformPathEdited = fullfile(d.folder, d.name(3:end));
+    deformPathEdited = niImageName;
     
     for ii = 1:length(xyzStruct)
         
@@ -160,7 +168,7 @@ function xyzMni = ieeg_getXyzMni(xyz, image, deformPath, rootdir, minDist)
     fprintf('Mean & SD percent change in pair-wise coordinate distances = %.1f +/- %.1f (%%)\n', 100*avgChg, 100*stdChg);
     
     % Repropagate nans so the output coordinate rows match 1-to-1 with input coordinates
-    xyzMni = zeros(origLength, 3);
+    xyzMni = NaN(origLength, 3);
     xyzMni(nonNanBool, :) = xyzMniNoNan;
     
 end
