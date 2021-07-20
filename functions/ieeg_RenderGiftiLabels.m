@@ -15,6 +15,18 @@ function tH = ieeg_RenderGiftiLabels(g,vert_label,cmapInput,roiNames,varargin)
 % Viewing Angle: can be changed with ecog_ViewLight(90,0), changes both
 % angle and light accordingly
 %
+% Example usage:
+%   gii = gifti('/path/to/gifti');
+%   [~, label, colortable] = read_annotation('path/to/.aparc.a2009s.annot'); % Destrieux labels
+% 
+%   label = changem(label, 1:size(colortable.table(:,5)), colortable.table(:,5)); % change labels to range from 1:n
+%   label_cmap = colortable.table(:, 1:3)./256; % normalize between 0 and 1
+%   label_cmap(1, :) = 0.7*[1 1 1]; % change unlabeled from black to gray
+%   label_cmap = brighten(label_cmap, 0.7); % make more pastel-colored
+% 
+%   figure; ieeg_RenderGiftiLabels(gii, label, label_cmap, colortable.struct_names);
+%
+%
 % DH 2017
 
 if ischar(cmapInput)
