@@ -51,16 +51,16 @@ function [dataOut, bipolarChans, excludedChans] = ieeg_bipolarSEEG(dataIn, chann
     leads(cellfun(@isempty, leads)) = []; % discard any channel names that don't contain letters
     
     channelPos = cellfun(@(ch) str2double(ch(isDigit(ch))), channelNames); % electrode position along lead for each channel
+    channelChar = cellfun(@(ch) ch(~isDigit(ch)), channelNames, 'UniformOutput', false); % just the character name of each lead
     
     minuend = []; subtrahend = []; % which indices to subtract from which
     bipolarChans = cell(0, 2); % 1st col = name, 2nd col = array of index pairs
     excludedChans = []; % indices of good channels skipped over
     for ll = 1:length(leads)
         
-        % Existing positions on current lead, sorted
-        [leadPos, ix] = sort(channelPos(startsWith(channelNames, leads{ll})));
+        [leadPos, ix] = sort(channelPos(strcmp(channelChar, leads{ll})));
         % Indices into input channels matching leadPos
-        leadInds = find(startsWith(channelNames, leads{ll})); leadInds = leadInds(ix);
+        leadInds = find(strcmp(channelChar, leads{ll})); leadInds = leadInds(ix);
         
         fprintf('Lead %s, pos 1 ... %d\n', leads{ll}, max(leadPos));
         
