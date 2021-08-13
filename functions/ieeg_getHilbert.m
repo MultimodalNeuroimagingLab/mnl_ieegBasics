@@ -27,9 +27,11 @@ function [power, phase] = ieeg_getHilbert(sigdata, bands, srate, powerType)
     if numel(bands) == 2, bands = bands(:)'; end % ensure row vector for 1 band
     assert(size(bands, 2) == 2, 'bands must be given as 2-column array [bandstart bandstop]');
     
-    powers = zeros(size(sigdata, 1), size(sigdata, 2), length(bands));
-    phases = zeros(size(sigdata, 1), size(sigdata, 2), length(bands));
+    powers = zeros(size(sigdata, 1), size(sigdata, 2), size(bands, 1));
+    phases = zeros(size(sigdata, 1), size(sigdata, 2), size(bands, 1));
     for ii = 1:size(bands, 1)
+        
+        fprintf('Calculating amplitude between %d and %d Hz\n', bands(ii, 1), bands(ii, 2));
         
         sigdata_pass = ieeg_butterpass(sigdata, bands(ii, :), srate, true);
         sigHilb = hilbert(sigdata_pass);
@@ -38,6 +40,7 @@ function [power, phase] = ieeg_getHilbert(sigdata, bands, srate, powerType)
         phases(:, :, ii) = angle(sigHilb);
     end
     
+    fprintf('Returning (combined) %s and phase\n', powerType);
     power = geomean(powers, 3); % geometric mean of powers across bands
     phase = mean(phases, 3); % arithmetic mean of phases (needs verification)
 
