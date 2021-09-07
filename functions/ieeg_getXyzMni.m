@@ -40,7 +40,7 @@ function xyzMni = ieeg_getXyzMni(xyz, niImageName, rootdir, minDist)
         niImage = spm_vol(niImageName);
     end   
 
-    if nargin < 5, minDist = 8; end
+    if nargin < 4, minDist = 8; end
     if minDist <= 2*sqrt(3)*1.5, warning('low minDist specified may result in inaccurate smoothing of coordinates'); end
     
     outdir = getSeqDir(rootdir, 'xyzImgs'); % where electrode nifti images are saved to & read from
