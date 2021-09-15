@@ -31,7 +31,9 @@ surfIndex = NaN(size(elecmatrix,1),1);
 for kk = 1:height(loc_info)
     % check for left or right
     if strcmp(loc_info.hemisphere{kk},'R')
-        if ~isnan(isnan(loc_info.Destrieux_label(kk))) % gray matter label    
+        % any matter label, non right thalamic 
+        if ~isnan(isnan(loc_info.Destrieux_label(kk))) && ...
+             loc_info.Destrieux_label(kk)~=49    % non right thalamic
             % get coordinates
             xyz = [loc_info.x(kk) loc_info.y(kk) loc_info.z(kk)];
 
@@ -46,7 +48,9 @@ for kk = 1:height(loc_info)
             
         end
     elseif strcmp(loc_info.hemisphere{kk},'L')
-        if ~isnan(isnan(loc_info.Destrieux_label(kk))) % gray matter label    
+        % any matter label, non left thalamic 
+        if ~isnan(isnan(loc_info.Destrieux_label(kk))) && ...
+                loc_info.Destrieux_label(kk)~=10    % non left thalamic
             % get coordinates
             xyz = [loc_info.x(kk) loc_info.y(kk) loc_info.z(kk)];
 
