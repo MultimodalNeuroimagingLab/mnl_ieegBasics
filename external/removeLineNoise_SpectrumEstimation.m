@@ -1,4 +1,4 @@
-function [wave] = removeLineNoise_SpectrumEstimation(wave, fs, opts)
+function [wave] = removeLineNoise_SpectrumEstimation(wave, fs, opts, verbose)
 % [wave] = removeLineNoise_SpectrumEstimation(wave, [fs], [opts])
 % removeLineNoise_SpectrumEstimation removes line noise (50/60 Hz) from a
 %  (chans/trials x samples) matrix, wave, which is samplel at fs Hz, and
@@ -36,8 +36,9 @@ function [wave] = removeLineNoise_SpectrumEstimation(wave, fs, opts)
 %  Release date:   30 November 2015
 % 0. Extract requested parameters
 %    Begin by stripping whitespace from string input, make case-insensitive
-if nargin<3, opts = ''; end
-if nargin<2, fs = 1;   end
+if nargin<4, verbose = true; end
+if nargin<3 || isempty(opts), opts = ''; end
+if nargin<2 || isempty(fs), fs = 1;   end
 opts = regexprep(lower(opts), '\s*\=\s*','=');
 % NH = number of harmonics
 cmd = regexp(opts,'(?<=nh\=)[\.\d]+','match','once');
@@ -82,21 +83,21 @@ end
 nStep  = 2;
 step   = round(m/nStep);
 clear err id W z err_tolerance
-fprintf('Removing Line Noise by Spectral Estimation ')
+if verbose, fprintf('Removing Line Noise by Spectral Estimation '); end
 % 2. Using an m-point Hanning (or other) window and discrete Fourier 
 %    transform, calculate the averaged m-point spectrum S(w) of the LFP. 
 cmd = regexp(opts,'(?<=win\=)[^\s]+','match','once');
 cmd = find(strncmpi(cmd,{'hann','hamming'},3),1);
 if cmd == 2,
-    fprintf('using a %d-point hamming window\n',m)
+    if verbose, fprintf('using a %d-point hamming window\n',m); end
     window = hamming(m,'periodic')';
 else
-    fprintf('using a %d-point hanning window\n',m)
+    if verbose, fprintf('using a %d-point hanning window\n',m); end
     window = hann(m,'periodic')';
 end
 % For each channel of the wave
 for cc = 1:size(wave,1)
-    fprintf('Channel %d\n',cc)
+    if verbose, fprintf('Channel %d\n',cc); end
 % 3. Pad the start and the end of the wave with a (50 Hz) sine wave fitted
 %    to the phase and amplitude of the first and last snippets of wave
     lineNoise = fitoptions('fourier1','Lower',[-inf -inf -inf 40/fs*2*pi] , ...
