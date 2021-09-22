@@ -45,6 +45,8 @@ function [dataOut, bipolarChans, excludedChans] = ieeg_bipolarSEEG(dataIn, chann
     
     assert(length(channelNames) == size(dataIn, 2), 'Number of columns in dataIn must match number of channel names');
     
+    emptyChs = cellfun(@isempty, channelNames);
+    channelNames(emptyChs) = []; dataIn(:, emptyChs) = [];
     channelNames = strip(upper(channelNames)); % some cleaning
     
     leads = unique(cellfun(@(ch) ch(~isDigit(ch)), channelNames, 'UniformOutput', false)); % unique lead names
