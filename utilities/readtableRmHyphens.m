@@ -21,7 +21,7 @@
 %
 % HH 2021
 %
-function tbl = readtableRmHyphens(path, colName, numHyphens, varargin)
+function [tbl, origCol] = readtableRmHyphens(path, colName, numHyphens, varargin)
     
     if nargin < 4
         tbl = readtable(path, 'FileType', 'text', 'Delimiter', '\t'); % default options for reading tsv files
@@ -33,7 +33,8 @@ function tbl = readtableRmHyphens(path, colName, numHyphens, varargin)
     if nargin < 2 || isempty(colName), colName = 'name'; end % which column to remote hyphens in
     assert(ismember(numHyphens, [0, 1]), 'Function is unequipped to handling columns with more than 1 deliberate hyphen');
     
-    col = tbl.(colName);
+    origCol = tbl.(colName);
+    col = origCol;
     for cc = 1:length(col)
         eles = split(col(cc), '-');
         
