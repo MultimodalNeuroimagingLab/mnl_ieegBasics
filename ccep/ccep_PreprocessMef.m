@@ -14,16 +14,16 @@
 %
 % USAGE:
 %   
-%   Constructor: creates a new PreprocessMef object. Loads the channels table and (optionally) the events table. Hyphens are removed from channel names and
+%   Constructor: creates a new ccep_PreprocessMef object. Loads the channels table and (optionally) the events table. Hyphens are removed from channel names and
 %   stim pair names (mef data will be loaded using original names, and hyphens will then be removed from metadata channel names).
-%   >> mefObj = PreprocessMef(mefPath, channelsPath);
-%   >> mefObj = PreprocessMef(mefPath, channelsPath, eventsPath);
+%   >> mefObj = ccep_PreprocessMef(mefPath, channelsPath);
+%   >> mefObj = ccep_PreprocessMef(mefPath, channelsPath, eventsPath);
 %       mefPath =               char. Path to .mefd folder to load
 %       channelsPath =          char. Path to channels.tsv file, matching the mef data.
 %       eventsPath =            (optional) char. Path to events.tsv file indicating where trials are in the mef data. If not given here, it must be given when
 %                                   calling loadMefTrials
 %      Returns:
-%       mefObj =                PreprocessMef object. Contains get-fields: sub, channels, evts, metadata, srate, dataAll, data, tt, progress
+%       mefObj =                ccep_PreprocessMef object. Contains get-fields: sub, channels, evts, metadata, srate, dataAll, data, tt, progress
 %
 %   Manually set subject name. Subject name is automatically extrapolated from channelsPath in constructor, but will be randomly assigned if that fails. sub is
 %   used in file names when saving input/output plots via plotInputs/plotOutputs
@@ -37,8 +37,8 @@
 %   >> paths = mefObj.getPaths;
 %      Returns:
 %       paths =                 struct. Contains fields mef, channels, events. Each field stores the char array path used to load that data. If 
-%                                   mefObj is a concatenated PreprocessMef object (catMef, below), then each field will contain multiple lines,
-%                                   corresponding to each concatenated PreprocessMef object, in order of concatenation.
+%                                   mefObj is a concatenated ccep_PreprocessMef object (catMef, below), then each field will contain multiple lines,
+%                                   corresponding to each concatenated ccep_PreprocessMef object, in order of concatenation.
 %
 %   Load all data from mefPath in a ch x timepoints array. Data is loaded as mefObj.dataAll. Also configures mefObj.metadata and mefObj.srate
 %   >> mefObj.loadMefAll;
@@ -59,7 +59,7 @@
 %                                   and this input is given, it will overwrite the existing mefObj.events
 %
 %   Common average rereferencing. If mefObj.dataAll exists, this call applies ieeg_car from mnl_ieegBasics, across all status=='good' channels. If mefObj.data
-%   exists, this call applies ccep_CAR or ccep_CAR64blocks from mnl_ieegBasics on each trial separately. This CANNOT be performed on a concatenated PreprocessMef
+%   exists, this call applies ccep_CAR or ccep_CAR64blocks from mnl_ieegBasics on each trial separately. This CANNOT be performed on a concatenated ccep_PreprocessMef
 %   object (PreprocessMef.catMef below), and SHOULD NOT be performed after mefObj.pruneChannels is called.
 %   >> mefObj.car;
 %   >> mefObj.car(by64);
@@ -131,31 +131,31 @@
 %
 %   Make a (shallow) copy of the mefObj
 %   >> mefObj2 = copy(mefObj);
-%       mefObj =                PreprocessMef object
+%       mefObj =                ccep_PreprocessMef object
 %      Returns:
 %       mefObj2 =               Shallow copy of mefObj
 %
-%   Concatenate across trials from multiple PreprocessMef objects into a single (new) PreprocessMef object. Input PreprocessMef objects are unaffected.
-%   Each PreprocessMef object must be in trial structure (possess mefObj.data, and must have the exact same channel names, srate, and time points (mefObj.tt)
-%   to be concatenated. Additionally, the PreprocessMef objects SHOULD have the same subject name (mefObj.sub) preprocess steps executed (mefObj.progress);
+%   Concatenate across trials from multiple ccep_PreprocessMef objects into a single (new) ccep_PreprocessMef object. Input ccep_PreprocessMef objects are unaffected.
+%   Each ccep_PreprocessMef object must be in trial structure (possess mefObj.data, and must have the exact same channel names, srate, and time points (mefObj.tt)
+%   to be concatenated. Additionally, the ccep_PreprocessMef objects SHOULD have the same subject name (mefObj.sub) preprocess steps executed (mefObj.progress);
 %   warnings will be given if these 2 matches are not met.
 %   (STATIC FUNCTION)
-%   >> mefObjCat = PreprocessMef.catMef(mefObj1, mefObj2, ... mefObjN);
-%       mefObj1 ... mefObjN =   PreprocessMef objects whose trials are to be concatenated, in the order that they are given as input.
+%   >> mefObjCat = ccep_PreprocessMef.catMef(mefObj1, mefObj2, ... mefObjN);
+%       mefObj1 ... mefObjN =   ccep_PreprocessMef objects whose trials are to be concatenated, in the order that they are given as input.
 %      Returns:
-%       mefObjCat =             PreprocessMef object. mefObjCat.sub, mefObjCat.channels, and mefObjCat.progress match those from mefObj1.
+%       mefObjCat =             ccep_PreprocessMef object. mefObjCat.sub, mefObjCat.channels, and mefObjCat.progress match those from mefObj1.
 %                                   mefObjCat.evts are vertically concatenated across all mefObjs. mefObjCat.data are concatenated across dim 3 (trials) across
 %                                   all mefObjs.
 %
 % EXAMPLES:
 %
-%   Ex. 1. Create a PreprocessMef object by loading directly as trials. Apply common average referencing by 64-ch blocks, prune down to first 20 channels,
+%   Ex. 1. Create a ccep_PreprocessMef object by loading directly as trials. Apply common average referencing by 64-ch blocks, prune down to first 20 channels,
 %   remove line noise by spectrum interpolation, and subtract mean baseline. Save all input and output CCEP plots to an output directory for preliminary viewing.
 %   Extract channels and data as a separate variables
 %   >> mefPath = '/path/to/file.mefd';                              % paths to inputs
 %   >> channelsPath = '/path/to/channels.tsv';
 %   >> eventsPath = '/path/to/events.tsv';
-%   >> mefObj = PreprocessMef(mefPath, channelsPath, eventsPath);   % construct PreprocessMef object, with eventsPath
+%   >> mefObj = ccep_PreprocessMef(mefPath, channelsPath, eventsPath);   % construct ccep_PreprocessMef object, with eventsPath
 %   >> mefObj.loadMefTrials([-1, 2]);                               % load mef data for each trial from -1 to 2s around onset
 %   >> mefObj.car(true);                                            % apply common average reference by 64-ch block
 %   >> mefObj.pruneChannels(1:20);                                  % keep only the first 20 channels
@@ -166,11 +166,11 @@
 %   >> channels = mefObj.channels;                                  % extract channels table and data as separate variables to use for later processing
 %   >> sigdata = mefObj.data;
 %
-%   Ex. 2. Create a PreprocessMef object by loading all data (ch x timepoints). Apply high-pass filter, remove line noise using notch filter, then assemble into
+%   Ex. 2. Create a ccep_PreprocessMef object by loading all data (ch x timepoints). Apply high-pass filter, remove line noise using notch filter, then assemble into
 %   trial structure. Apply common average rereferencing without restriction to 64-ch blocks and subtract median baseline. Display preprocessing progress, and open
 %   plots for a few incoming CCEPs and a few outgoing CCEPs without automatically saving.
 %   (Assume same paths as in ex. 1)
-%   >> mefObj = PreprocessMef(mefPath, channelsPath);               % construct PreprocessMef object, this time not yet giving eventsPath
+%   >> mefObj = ccep_PreprocessMef(mefPath, channelsPath);               % construct ccep_PreprocessMef object, this time not yet giving eventsPath
 %   >> mefObj.loadMefAll;                                           % load all mef data in ch x time points structure
 %   >> mefObj.highpass;                                             % apply high-pass filter to each channel
 %   >> mefObj.removeLN('notch');                                    % remove line noise from each channel using notch filter
@@ -185,7 +185,7 @@
 %   Todo:
 %       - implement bipolar referencing option
 %
-classdef PreprocessMef < matlab.mixin.Copyable % allow shallow copies
+classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
     
     properties % modifiable properties
         sub char % subject name
@@ -212,7 +212,7 @@ classdef PreprocessMef < matlab.mixin.Copyable % allow shallow copies
     
     methods
         
-        function obj = PreprocessMef(mefPath, channelsPath, eventsPath) % Specify paths and load tables
+        function obj = ccep_PreprocessMef(mefPath, channelsPath, eventsPath) % Specify paths and load tables
             obj.mefPath = mefPath;
             obj.channelsPath = channelsPath;
             obj.setSub;
@@ -304,7 +304,7 @@ classdef PreprocessMef < matlab.mixin.Copyable % allow shallow copies
         
         function car(obj, by64) % apply common average rereference to dataAll or data, depending on which exists. Option to perform by 64-ch block
             if nargin < 2, by64 = false; end
-            assert(~obj.concatenated, 'Common average rereferencing cannot be performed after concatenating multiple PreprocessMef objects');
+            assert(~obj.concatenated, 'Common average rereferencing cannot be performed after concatenating multiple ccep_PreprocessMef objects');
             if ~isempty(obj.chsPruned), warning('Applying CAR after pruning channels may be inaccurate!!'); end
             
             if ~isempty(obj.dataAll) && isempty(obj.data)
@@ -524,8 +524,8 @@ classdef PreprocessMef < matlab.mixin.Copyable % allow shallow copies
     
     methods(Static)
         
-        function objCat = catMef(varargin) % create a new PreprocesMef object by concatenating aross PreprocessMef objects
-            assert(isa(varargin{1}, 'PreprocessMef'), 'Inputs must be PreprocessMef objects');
+        function objCat = catMef(varargin) % create a new PreprocesMef object by concatenating aross ccep_PreprocessMef objects
+            assert(isa(varargin{1}, 'ccep_PreprocessMef'), 'Inputs must be ccep_PreprocessMef objects');
             objCat = copy(varargin{1}); % copy object so as to modify first obj
             assert(~isempty(objCat.data), 'Object 1 not in trial structure -- cannot be concatenated');
             
@@ -547,9 +547,9 @@ classdef PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 objCat.channelsPath = sprintf('%s\n%s', objCat.channelsPath, obj2.channelsPath);
                 objCat.eventsPath = sprintf('%s\n%s', objCat.eventsPath, obj2.eventsPath);
             end
-            fprintf('Merged across %d PreprocessMef objects\n', ii);
+            fprintf('Merged across %d ccep_PreprocessMef objects\n', ii);
             objCat.concatenated = true;
-            objCat.progress = sprintf('%s\n> Merged across %d PreprocessMef objects', objCat.progress, ii);
+            objCat.progress = sprintf('%s\n> Merged across %d ccep_PreprocessMef objects', objCat.progress, ii);
         end
         
     end
