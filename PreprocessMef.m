@@ -1,0 +1,600 @@
+%% Preprocessing class for CCEP mef data
+%   Mef data is loaded using the matmef package (Max van den Boom, 2020) and then subjected to modular preprocessing steps at the user's discretion.
+%   Available preprocessing steps are highpass filtering, common average rereferencing, removing line noise, and baseline subtraction.
+%   Data can be loaded all at once (ch x time points), have some preprocessing steps performed, and THEN converted to trial structure
+%   (ch x time points x trials), or data can be loaded directly in trial structure via readMef3 (ch x time points x trials) to save memory.
+%   Data can also be pruned down to only the desired channels.
+%   Multiple mef objects, corresponding to multiple trials, can be concatenated together. This is particularly useful when different stim pairs have been split up
+%   across multiple recording runs.
+%   Incoming and outgoing CCEPs can be plotted for any/all channels and saved to a directory for preliminary viewing.
+%
+% DEPENDENCIES:
+%   matmef, by Max van den Boom
+%   mnl_ieegBasics
+%
+% USAGE:
+%   
+%   Constructor: creates a new PreprocessMef object. Loads the channels table and (optionally) the events table. Hyphens are removed from channel names and
+%   stim pair names (mef data will be loaded using original names, and hyphens will then be removed from metadata channel names).
+%   >> mefObj = PreprocessMef(mefPath, channelsPath);
+%   >> mefObj = PreprocessMef(mefPath, channelsPath, eventsPath);
+%       mefPath =               char. Path to .mefd folder to load
+%       channelsPath =          char. Path to channels.tsv file, matching the mef data.
+%       eventsPath =            (optional) char. Path to events.tsv file indicating where trials are in the mef data. If not given here, it must be given when
+%                                   calling loadMefTrials
+%      Returns:
+%       mefObj =                PreprocessMef object. Contains get-fields: sub, channels, evts, metadata, srate, dataAll, data, tt, progress
+%
+%   Manually set subject name. Subject name is automatically extrapolated from channelsPath in constructor, but will be randomly assigned if that fails. sub is
+%   used in file names when saving input/output plots via plotInputs/plotOutputs
+%   >> mefObj.sub = 'sub-Name';
+%   
+%   Display preprocessing progress
+%   >> mefObj.progress;
+%      Returns: char
+%
+%   Get paths used to load mef data, channels, and events
+%   >> paths = mefObj.getPaths;
+%      Returns:
+%       paths =                 struct. Contains fields mef, channels, events. Each field stores the char array path used to load that data. If 
+%                                   mefObj is a concatenated PreprocessMef object (catMef, below), then each field will contain multiple lines,
+%                                   corresponding to each concatenated PreprocessMef object, in order of concatenation.
+%
+%   Load all data from mefPath in a ch x timepoints array. Data is loaded as mefObj.dataAll. Also configures mefObj.metadata and mefObj.srate
+%   >> mefObj.loadMefAll;
+%
+%   Apply high-pass filtering to mefObj.dataAll, one channel at a time, using ieeg_highpass.m from mnl_ieegBasics.
+%   Stop band < 0.05 Hz, Pass band > 0.50 Hz. Forward-reverse filtering (filtfilt) with Butterworth filter of 30dB attenuation and 3dB ripple
+%   >> mefObj.highpass;
+%   
+%   Load/convert mef data into trial structure (ch x time points x trials), as mefObj.data
+%   If dataAll is already loaded with loadMefAll, then the trial structure is pulled directly from dataAll (fast). DataAll IS THEN DELETED.
+%   If dataAll hasn't been loaded, then data is loaded fresh from mefPath using readMef3 (slow).
+%   The end result moving forward is only mefObj.data OR mefObj.dataAll will exist, not both!
+%   Configures mefObj.tt, which is a 1xn double time point vector
+%   >> mefObj.loadMefTrials(trange);
+%   >> mefObj.loadMefTrials(trange, eventsPath);
+%       trange =                1x2 double. [start, stop] time, in seconds, around each event onset to load as trials
+%       eventsPath =            (optional) char. Only needed if not given during object construction. Path to events.tsv file. If mefObj.events already exists
+%                                   and this input is given, it will overwrite the existing mefObj.events
+%
+%   Common average rereferencing. If mefObj.dataAll exists, this call applies ieeg_car from mnl_ieegBasics, across all status=='good' channels. If mefObj.data
+%   exists, this call applies ccep_CAR or ccep_CAR64blocks from mnl_ieegBasics on each trial separately. This CANNOT be performed on a concatenated PreprocessMef
+%   object (PreprocessMef.catMef below), and SHOULD NOT be performed after mefObj.pruneChannels is called.
+%   >> mefObj.car;
+%   >> mefObj.car(by64);
+%       by64 =                  (optional) logical, default = false. If true, ccep_CAR64blocks is used instead of ccep_CAR, which applies a separate rereference
+%                                   to each contiguous block of 64 SEEG channels. Both functions threshold channels that form the reference by early variance
+%                                   late variance criteria. This input is ignored if trial structure data (mefObj.data) doesn't exist (since ieeg_car is used)
+%
+%   Line noise removal, using either a notch filter (mnl_ieegBasics ieeg_notch) or the spectrum interpolation method implemented by Mewett, Nazeran, and Reynolds.
+%   Each time point vector (1 ch x 1 trial) is filtered separately
+%   >> mefObj.removeLN('notch');
+%   >> mefObj.removeLN('notch', f);
+%   >> mefObj.removeLN('SpectrumEstimation');
+%   >> mefObj.removeLN('SpectrumEstimation', opts);
+%       'notch' =               Removes line noise with notch filter. Specify f to be either 60 (default) or 50 to remove line noise and harmonics at
+%                                   [60, 120, 180] Hz or [50, 100, 150] Hz.
+%       'SpectrumEstimation'    Removes line noise with the spectrum interpolation method (mnl_ieegBasics/external/removeLineNoise_SpectrumEstimation.m).
+%                                   opts gets passed to the opts input of that function. Default = 'LF = 60, NH = 3, HW = 3' (line noise fundamental freq =
+%                                   60 Hz, remove 3 harmonics, half-width = 3 Hz).
+%
+%   Prune channels to keep only channels of interest (to save memory). Modifies mefObj.channels, mefObj.dataAll (if exists), mefObj.data (if exists)
+%   >> mefObj.pruneChannels(chList);
+%       chList =                1xn cell or integer. If cell array, each element is a channel name to keep. E.g. {'RA1', 'RA2', 'RC4'}. If integer array,
+%                                   each element is a channel index to keep. E.g. 21:30 keeps the 21st - 30th channels
+%
+%   Subtracts baseline voltage from each trial in mefObj.data, calculated on a baseline time range
+%   >> mefObj.subtractBaseline(baseRange);
+%   >> mefObj.subtractBaseline(baseRange, method);
+%       baseRange =             1x2 double. [start, stop] time, in seconds, to calculate the baseline voltage on for each trial
+%       method =                (optional) char, default = 'mean'. 'mean' or 'median', method to calculate baseline voltage
+%
+%   Generate plots of incoming CCEPs to all channels or channels of interest. Plots are opened if no <dir> input given, or saved without opening if <dir> input given.
+%   If <dir> is given, a metadata file named 'metadata_<mefObj.sub>_incomingCCEP.txt' is also written to <dir>, containing info on the date/time the command was
+%   executed, the paths used to to load the data, preprocessing steps executed, and channels saved.
+%   >> mefObj.plotInputs;
+%   >> mefObj.plotInputs(chs, trange);
+%   >> mefObj.plotInputs(__, dir);
+%   >> mefObj.plotInputs(__, dir, fmt);
+%       chs =                   (optional) 1xn cell or integer. If not given, incoming CCEPs to all channels are plotted. If given, can be cell array of channel
+%                                   names, e.g. {'RA1', 'RA2', 'RC4'}; or integer array of channel indices, e.g. 21:30, to plot incoming CCEPs for.
+%       trange =                (optional) 1x2 double. [start, stop] time, in seconds, around each trial to plot the incoming CCEPs. If not given, the entire
+%                                   mefObj.tt is plotted.
+%       dir =                   (optional) char. Path to directory (folder) to save plots to. If not given, the plot at each channel will be opened without saving.
+%                                   If given, the plots will not be open but rather directly saved in <dir> instead.
+%       fmt =                   (optional) char. String formatting used to name the plots if saved to <dir>. Must contain 2 '%s', where the first one corresponds
+%                                   to the subject name (mefObj.sub) and the second one corresponds to the channel saved. Default = '%s_incomingCCEP_%s'.
+%                                   E.g. using default fmt, if mefObj.sub == 'sub-harbo' and the current channel plotted is 'RA1', the file saved would be at
+%                                   '<dir>/sub-harbo_incomingCCEP_RA1.png'.
+%
+%   Generate plots of outgoing CCEPs from all stimulated electrode pairs or stim pairs of interest. Plots are opened if no <dir> input given, or saved without
+%   opening if <dir> input given. If <dir> is given, a metadata file named 'metadata_<mefObj.sub>_outgoingCCEP.txt' is also written to <dir>, containing info on
+%   the date/time the command was executed, the paths used to to load the data, preprocessing steps executed, and stim pairs saved.
+%   >> mefObj.plotOutputs;
+%   >> mefObj.plotOutputs(sites, trange);
+%   >> mefObj.plotOutputs(__, dir);
+%   >> mefObj.plotOutputs(__, dir, fmt);
+%       sites =                 (optional) 1xn cell or integer. If not given, outgoing CCEPs from all stim electrode pairs are plotted. If given, can be
+%                                   cell array of stim pair names, e.g. {'RA1-RA2', 'RA2-RA3', 'RC4-RC4'}; or integer array of stim pair indices, in the order
+%                                   that they are uniquely encountered going down the events file, e.g. 11:20 for the 11th - 20th unique stim pairs, to plot
+%                                   outgoing CCEPs for.
+%       trange =                (optional) 1x2 double. [start, stop] time, in seconds, around each trial to plot the outgoing CCEPs. If not given, the entire
+%                                   mefObj.tt is plotted.
+%       dir =                   (optional) char. Path to directory (folder) to save plots to. If not given, the plot for each stim pair will be opened without saving.
+%                                   If given, the plots will not be open but rather directly saved in <dir> instead.
+%       fmt =                   (optional) char. String formatting used to name the plots if saved to <dir>. Must contain 2 '%s', where the first one corresponds
+%                                   to the subject name (mefObj.sub) and the second one corresponds to the stim pair saved. Default = '%s_outgoingCCEP_%s'.
+%                                   E.g. using default fmt, if mefObj.sub == 'sub-harbo' and the current stim pair plotted is 'RA1-RA2', the file saved would be at
+%                                   '<dir>/sub-harbo_outgoingCCEP_RA1-RA2.png'.
+%
+%   Make a (shallow) copy of the mefObj
+%   >> mefObj2 = copy(mefObj);
+%       mefObj =                PreprocessMef object
+%      Returns:
+%       mefObj2 =               Shallow copy of mefObj
+%
+%   Concatenate across trials from multiple PreprocessMef objects into a single (new) PreprocessMef object. Input PreprocessMef objects are unaffected.
+%   Each PreprocessMef object must be in trial structure (possess mefObj.data, and must have the exact same channel names, srate, and time points (mefObj.tt)
+%   to be concatenated. Additionally, the PreprocessMef objects SHOULD have the same subject name (mefObj.sub) preprocess steps executed (mefObj.progress);
+%   warnings will be given if these 2 matches are not met.
+%   (STATIC FUNCTION)
+%   >> mefObjCat = PreprocessMef.catMef(mefObj1, mefObj2, ... mefObjN);
+%       mefObj1 ... mefObjN =   PreprocessMef objects whose trials are to be concatenated, in the order that they are given as input.
+%      Returns:
+%       mefObjCat =             PreprocessMef object. mefObjCat.sub, mefObjCat.channels, and mefObjCat.progress match those from mefObj1.
+%                                   mefObjCat.evts are vertically concatenated across all mefObjs. mefObjCat.data are concatenated across dim 3 (trials) across
+%                                   all mefObjs.
+%
+% EXAMPLES:
+%
+%   Ex. 1. Create a PreprocessMef object by loading directly as trials. Apply common average referencing by 64-ch blocks, prune down to first 20 channels,
+%   remove line noise by spectrum interpolation, and subtract mean baseline. Save all input and output CCEP plots to an output directory for preliminary viewing.
+%   Extract channels and data as a separate variables
+%   >> mefPath = '/path/to/file.mefd';                              % paths to inputs
+%   >> channelsPath = '/path/to/channels.tsv';
+%   >> eventsPath = '/path/to/events.tsv';
+%   >> mefObj = PreprocessMef(mefPath, channelsPath, eventsPath);   % construct PreprocessMef object, with eventsPath
+%   >> mefObj.loadMefTrials([-1, 2]);                               % load mef data for each trial from -1 to 2s around onset
+%   >> mefObj.car(true);                                            % apply common average reference by 64-ch block
+%   >> mefObj.pruneChannels(1:20);                                  % keep only the first 20 channels
+%   >> mefObj.removeLN('SpectrumEstimation');                       % remove line noise using spectrum interpolation method
+%   >> mefObj.subtractBaseline([-0.5, -0.05]);                      % subtract baseline from each trial calculated as the mean from -0.5s to -0.05s
+%   >> mefObj.plotInputs([], [], '/path/to/output/folder');         % save plots of incoming CCEPs to all (20 pruned) channels to output folder, on [-1, 2]s time interval
+%   >> mefObj.plotOutputs([], [], 'path/to/output/folder');         % save plots of outgoing CCEPs from all stim pairs to output folder, on [-1, 2]s time interval
+%   >> channels = mefObj.channels;                                  % extract channels table and data as separate variables to use for later processing
+%   >> sigdata = mefObj.data;
+%
+%   Ex. 2. Create a PreprocessMef object by loading all data (ch x timepoints). Apply high-pass filter, remove line noise using notch filter, then assemble into
+%   trial structure. Apply common average rereferencing without restriction to 64-ch blocks and subtract median baseline. Display preprocessing progress, and open
+%   plots for a few incoming CCEPs and a few outgoing CCEPs without automatically saving.
+%   (Assume same paths as in ex. 1)
+%   >> mefObj = PreprocessMef(mefPath, channelsPath);               % construct PreprocessMef object, this time not yet giving eventsPath
+%   >> mefObj.loadMefAll;                                           % load all mef data in ch x time points structure
+%   >> mefObj.highpass;                                             % apply high-pass filter to each channel
+%   >> mefObj.removeLN('notch');                                    % remove line noise from each channel using notch filter
+%   >> mefObj.loadMefTrials([-1.5, 2.5], eventsPath);               % convert dataAll to trial structure, from -1.5 to 2.5s around onset. eventsPath needed because it wasn't given at construction
+%   >> mefObj.car;                                                  % apply common average reference without restricting to 64-ch blocks
+%   >> mefObj.subtractBaseline([-1, 0.005], 'median');              % subtract baseline from each trial calculated as the median from -1s to -0.005s
+%   >> mefObj.progress;                                             % display preprocessing progress
+%   >> mefObj.plotInputs({'RA1', 'RA2', 'RC4'}, [-0.1, 1]);         % open plots of incoming CCEPs to 3 channels for inspection, from -0.1s to 1s around trial onset
+%   >> mefObj.plotOuputs(5:10, [-0.1, 1]);                          % open plots of outgoing CCEPs from 6 stim sites for inspection, from -0.1s to 1s around trial onset
+%
+% Harvey Huang 2021
+%   Todo:
+%       - implement bipolar referencing option
+%
+classdef PreprocessMef < matlab.mixin.Copyable % allow shallow copies
+    
+    properties % modifiable properties
+        sub char % subject name
+    end
+    
+    properties (SetAccess = private)
+        channels table
+        evts table
+        metadata struct
+        srate double
+        dataAll double % "all" data, ch x time points
+        data double % ch x time points x trials, either restructured from dataAll or loaded directly from mefPath
+        tt double
+        progress char
+    end
+    
+    properties (Access = private)
+        mefPath char
+        channelsPath char
+        eventsPath char
+        chsPruned cell % stores info on channels that have been pruned
+        concatenated logical = false; % true if this obj was a concatenated output from multiple objs
+    end
+    
+    methods
+        
+        function obj = PreprocessMef(mefPath, channelsPath, eventsPath) % Specify paths and load tables
+            obj.mefPath = mefPath;
+            obj.channelsPath = channelsPath;
+            obj.setSub;
+            obj.channels = readtableRmHyphens(channelsPath);
+            
+            if nargin < 3 % no events. Load later when putting into trial structure
+                disp('No events file loaded');
+                return
+            end
+            
+            obj.eventsPath = eventsPath;
+            try
+                obj.evts = readtableRmHyphens(eventsPath, 'electrical_stimulation_site', 1);
+            catch
+                obj.evts = readtable(eventsPath, 'FileType', 'text', 'Delimiter', '\t'); % if not CCEP events
+            end
+            
+            try % remove bad trials
+                fprintf('Removing %d not good events\n', sum(~strcmpi(obj.evts.status, 'good')));
+                obj.evts(~strcmpi(obj.evts.status, 'good'), :) = [];
+            catch
+                warning('Could not remove events from status column');
+            end
+        end
+        
+        function paths = getPaths(obj) % returns paths used to load data
+            paths = struct();
+            paths.mef = obj.mefPath;
+            paths.channels = obj.channelsPath;
+            paths.events = obj.eventsPath;
+        end
+        
+        function loadMefAll(obj) % load ch x time points matrix of entire mef data
+            disp('Loading FULL mef data');
+            channelsMef = readtable(obj.channelsPath, 'FileType', 'text', 'Delimiter', '\t'); % preserve names to load mef
+            [obj.metadata, obj.dataAll] = readMef3(obj.mefPath, [], channelsMef.name);
+            obj.srate = obj.metadata.time_series_metadata.section_2.sampling_frequency;
+            obj.dataAll = obj.applyConversionFactor(obj.dataAll); % apply conversion upon loading
+            obj.changeName(); % remove hyphenated names
+            obj.progress = 'Loaded all data';
+        end
+        
+        function highpass(obj) % apply highpass filter to dataAll (not to trial data because of strong edge effects)
+            assert(~isempty(obj.dataAll), 'highpass can only be applied to dataAll (channels x timepoints)');
+            disp('Applying highpass filter');
+            obj.dataAll = ieeg_highpass(obj.dataAll', obj.srate)';
+            obj.progress = sprintf('%s\n> high-pass filter', obj.progress);
+        end
+        
+        function loadMefTrials(obj, trange, eventsPath) % convert dataAll to ch x time points x trials, or load directly from mefd 
+            if nargin >= 3
+                if ~isempty(obj.evts), warning('Overwriting existing events'); end
+                obj.eventsPath = eventsPath;
+                try
+                    obj.evts = readtableRmHyphens(eventsPath, 'electrical_stimulation_site', 1);
+                catch
+                    obj.evts = readtable(eventsPath, 'FileType', 'text', 'Delimiter', '\t'); % if not CCEP events
+                end
+            elseif isempty(obj.evts)
+                error('Path to events file must be input as 3rd argument');
+            end
+            
+            if isempty(obj.metadata) % did not get from loading dataAll
+                obj.metadata = readMef3(obj.mefPath); % get sampling frequency
+                obj.srate = obj.metadata.time_series_metadata.section_2.sampling_frequency;
+            end
+            
+            obj.tt = (0:(trange(end)-trange(1))*obj.srate-1)/obj.srate + trange(1); % samples around stim to return
+            ranges = [obj.evts.sample_start + obj.tt(1)*obj.srate, ...
+                      obj.evts.sample_start + obj.tt(1)*obj.srate + length(obj.tt)]; % [start end] samples for each trial
+            
+            if ~isempty(obj.dataAll)
+                disp('Converting dataAll into trial structure');
+                obj.data = nan([height(obj.channels), length(obj.tt), height(obj.evts)]); % chs x time x trials
+                for ii = 1:height(obj.evts)
+                    obj.data(:, :, ii) = obj.dataAll(:, ranges(ii, 1)+1 : ranges(ii, 2)); % equivalent to readMef3 on ranges(tr, 1):ranges(tr, 2)
+                end
+                obj.dataAll = []; % clear memory
+                obj.progress = sprintf('%s\n> Converted data to trials', obj.progress);
+            else
+                disp('Loading data trials from mefd file');
+                channelsMef = readtable(obj.channelsPath, 'FileType', 'text', 'Delimiter', '\t'); % preserve names to load mef
+                [~, obj.data] = readMef3(obj.mefPath, [], channelsMef.name, 'samples', ranges);
+                obj.changeName(); % remove hyphenated names
+                obj.data = obj.applyConversionFactor(obj.data); % apply conversion upon loading
+                obj.progress = 'Loaded data in trials';
+            end
+        end
+        
+        function car(obj, by64) % apply common average rereference to dataAll or data, depending on which exists. Option to perform by 64-ch block
+            if nargin < 2, by64 = false; end
+            assert(~obj.concatenated, 'Common average rereferencing cannot be performed after concatenating multiple PreprocessMef objects');
+            if ~isempty(obj.chsPruned), warning('Applying CAR after pruning channels may be inaccurate!!'); end
+            
+            if ~isempty(obj.dataAll) && isempty(obj.data)
+                warning('Applying ieeg_car to dataAll because trial data hasn''t been created. by64 arg ignored');
+                chans2incl = find(strcmpi(obj.channels.type, 'SEEG') & strcmpi(obj.channels.status, 'good'));
+                obj.dataAll = ieeg_car(obj.dataAll', chans2incl)';
+                obj.progress = sprintf('%s\n> Common average rereference', obj.progress);
+            elseif isempty(obj.dataAll) && ~isempty(obj.data)
+                if by64
+                    assert(isempty(obj.chsPruned), 'Cannot apply 64-SEEG-ch block CAR after pruning channels');
+                    disp('Applying CAR by 64-SEEG-ch block to trial data');
+                    obj.data = ccep_CAR64blocks(obj.data, obj.tt, obj.channels, obj.evts.electrical_stimulation_site);
+                    obj.progress = sprintf('%s\n> Common average rereference by 64-SEEG-ch block', obj.progress);
+                else
+                    disp('Applying CAR to trial data');
+                    obj.data = ccep_CAR(obj.data, obj.tt, obj.channels, obj.evts.electrical_stimulation_site);
+                    obj.progress = sprintf('%s\n> Common average rereference', obj.progress);
+                end
+            else, error('Either dataAll or data (not both) needs to exist');
+            end
+        end
+        
+        function bipolar(obj) % bipolar rereferencing, to be implemented
+            error('Bipolar referencing not yet implemented');
+            obj.progress = sprintf('%s\n> bipolar rereference', obj.progress);
+        end
+        
+        function pruneChannels(obj, chList) % keep only relevant channels
+            if isnumeric(chList), chList = obj.channels.name(chList); end % convert indices to names
+            if ischar(chList), chList = {chList}; end % if single ch given
+            
+            assert(sum(ismember(obj.channels.name, chList)) > 0, 'No channels will be returned');
+            obj.chsPruned = setdiff(obj.channels.name, chList); % keep track which channels have been removed
+            
+            if ~isempty(obj.dataAll) && isempty(obj.data)
+                obj.dataAll(~ismember(obj.channels.name, chList), :) = [];
+            elseif isempty(obj.dataAll) && ~isempty(obj.data)
+                obj.data(~ismember(obj.channels.name, chList), :, :) = [];
+            end
+            obj.channels(~ismember(obj.channels.name, chList), :) = [];
+            obj.progress = sprintf('%s\n> Pruned channels', obj.progress);
+        end
+        
+        function removeLN(obj, method, opts) % remove line noise on dataAll or data (ch-by-ch), depending on whcih exists
+            switch lower(method)
+                case 'notch' % probably code a more sophisticated notch filter later
+                    if nargin < 3, opts = 60; end % base notch frequency
+                    if ischar(opts), opts = str2double(opts); end % ensure numerical
+                    if ~isempty(obj.dataAll) && isempty(obj.data)
+                        disp('Removing line noise on dataAll with ieeg_notch');
+                        obj.dataAll = ieeg_notch(obj.dataAll', obj.srate, opts, true)';
+                    elseif isempty(obj.dataAll) && ~isempty(obj.data)
+                        disp('Removing line noise on trial data with ieeg_notch');
+                        for ii = 1:size(obj.data, 1)
+                            fprintf('.');
+                            obj.data(ii, :, :) = ieeg_notch(squeeze(obj.data(ii, :, :)), obj.srate, opts, false);
+                        end
+                        fprintf('\n');
+                    else, error('Either dataAll or data (not both) needs to exist');
+                    end
+                    obj.progress = sprintf('%s\n> Removed line noise at %d Hz with notch filter', obj.progress, opts);
+                    
+                case 'spectrumestimation'
+                    if nargin < 3, opts = 'LF = 60, NH = 3, HW = 3'; end % default params
+                    if ~isempty(obj.dataAll) && isempty(obj.data)
+                        assert(isempty(obj.data), 'trial data shouldn''t exist if dataAll still exists');
+                        disp('Removing line noise on dataAll with removeLineNoise_SpectrumEstimation');
+                        obj.dataAll = removeLineNoise_SpectrumEstimation(obj.dataAll, obj.srate, opts, true);
+                    elseif isempty(obj.dataAll) && ~isempty(obj.data)
+                        disp('Removing line noise on trial data with removeLineNoise_SpectrumEstimation');
+                        for ii = 1:size(obj.data, 1)
+                            fprintf('.');
+                            obj.data(ii, :, :) = removeLineNoise_SpectrumEstimation(squeeze(obj.data(ii, :, :))', obj.srate, opts, false)';
+                        end
+                        fprintf('\n');
+                    else, error('Either dataAll or data (not both) needs to exist');
+                    end
+                    obj.progress = sprintf('%s\n> Removed line noise with spectrum estimation; settings: %s', obj.progress, opts);
+                    
+                otherwise
+                    error("Unexpected method arg. Options = 'Notch' or 'SpectrumEstimation'");
+            end
+            
+        end
+        
+        function subtractBaseline(obj, baseRange, method) % subtract baseline period with mean or median
+            assert(~isempty(obj.data), 'Baseline can only be subtracted from trial data');
+            assert(baseRange(1)>=obj.tt(1) && baseRange(end)<=obj.tt(end), 'baseline time range not within tt time range');
+            if nargin < 3, method = 'mean'; end
+            switch lower(method)
+                case 'mean'
+                    obj.data = obj.data - mean(obj.data(:, obj.tt>=baseRange(1) & obj.tt<=baseRange(end), :), 2);
+                case 'median'
+                    obj.data = obj.data - median(obj.data(:, obj.tt>=baseRange(1) & obj.tt<=baseRange(end), :), 2);
+                otherwise
+                    error("method must be given as 'mean' or 'median'");
+            end
+            obj.progress = sprintf('%s\n> Subtracted %s baseline on [%.3f, %.3f] s', obj.progress, method, baseRange(1), baseRange(end));
+        end
+        
+        function plotInputs(obj, chs, trange, dir, fmt) % generate/save prelim incoming CCEP plots
+            assert(~isempty(obj.data), 'Plots can only be generated from trial data');
+            
+            if nargin < 5, fmt = '%s_incomingCCEP_%s.png'; end % string formatting to save images
+            assert(count(fmt, '%s') == 2, 'fmt needs to contain exactly 2 ''%s''s');
+            
+            if nargin < 4, dir = []; end
+            if nargin < 3 || isempty(trange), trange = [min(obj.tt), max(obj.tt)]; end
+            if nargin < 2 || isempty(chs), chs = obj.channels.name; end % plot all channels
+            if isnumeric(chs), chs = obj.channels.name(chs); end
+            if ischar(chs), chs = {chs}; end % if single input
+            if length(chs) > 10 && isempty(dir)
+                answer = questdlg(sprintf('Are you sure you want to open %d figures', length(chs)), ...
+                                          'Plot inputs', 'Yes, I have SO MUCH RAM to spare', 'No, cancel', 'No, cancel');
+                if strcmp(answer, 'No, cancel'), return; end
+            end  
+            
+            for ii = 1:length(chs)
+                dataCh = squeeze(obj.data(strcmpi(obj.channels.name, chs{ii}), :, :));
+                assert(~isempty(dataCh), 'No input data to channel %s', chs{ii});
+                stimSites = unique(obj.evts.electrical_stimulation_site);
+                
+                if ~isempty(dir) % save to dir, don't show plot
+                    f = figure('Position', [200, 200, 600, 800], 'visible', 'off');
+                else
+                    figure('Position', [200, 200, 600, 800]);
+                end
+                hold on;
+                for jj = 1:size(stimSites, 1)
+                    meanTrial = mean(dataCh(:, strcmp(obj.evts.electrical_stimulation_site, stimSites{jj})), 2);
+                    plot(obj.tt, meanTrial-(jj-1)*500, 'LineWidth', 1);
+                    yline(-(jj-1)*500, 'Color', 0.5*[1, 1, 1]);
+                end
+                xline(0, 'Color', 'r');
+                plot([0.05 0.05], [250 750], 'k', 'LineWidth', 2); % scale
+                text(0.055, 500, '500 \muV');
+                hold off
+                
+                xlim([min(trange), max(trange)]);
+                ylim([-(jj+1)*500, 1000]); % [-1000 from bottom to 1000 from top]
+                xlabel('time (s)');
+                ylabel('stimulated electrodes');
+                set(gca, 'YTick', (-500)*(size(stimSites, 1)-1:-1:0), 'YTickLabel', flip(stimSites), 'FontSize', 10);
+                title(sprintf('Input to: %s', chs{ii}));
+                
+                if ~isempty(dir) % save to dir
+                    fprintf('Saving INPUT plot for %s\n', chs{ii});
+                    saveas(f, fullfile(dir, sprintf(fmt, obj.sub, chs{ii})), 'png');
+                    close(f);
+                end
+            end
+            
+            if ~isempty(dir), obj.writeMeta(fullfile(dir, sprintf('metadata_%s_incomingCCEP.txt', obj.sub)), chs); end % metadata about parameters
+        end
+        
+        function plotOutputs(obj, sites, trange, dir, fmt) % generate/save prelim outgoing CCEP plots
+            assert(~isempty(obj.data), 'Plots can only be generated from trial data');
+            
+            if nargin < 5, fmt = '%s_outgoingCCEP_%s.png'; end % string formatting to save images
+            assert(count(fmt, '%s') == 2, 'fmt needs to contain exactly 2 ''%s''s');
+            
+            if nargin < 4, dir = []; end
+            if nargin < 3 || isempty(trange), trange = [min(obj.tt), max(obj.tt)]; end
+            if nargin < 2 || isempty(sites), sites = obj.evts.electrical_stimulation_site; end % plot all stim sites
+            if isnumeric(sites)
+                allSites = unique(obj.evts.electrical_stimulation_site, 'stable'); % sort in order of first encounter
+                sites = allSites(sites);
+            end % indices
+            if ischar(sites), sites = {sites}; end % if single input
+            if length(sites) > 10 && isempty(dir)
+                answer = questdlg(sprintf('Are you sure you want to open %d figures', length(sites)), ...
+                                          'Plot outputs', 'Yes, I have SO MUCH RAM to spare', 'No, cancel', 'No, cancel');
+                if strcmp(answer, 'No, cancel'), return; end
+            end
+            
+            for ii = 1:length(sites)
+                dataStim = obj.data(:, :, strcmpi(obj.evts.electrical_stimulation_site, sites{ii})); % transpose to match plotInput structure
+                assert(~isempty(dataStim), 'No output data from stim site %s', sites{ii});
+                dataStim = mean(dataStim, 3)'; % mean across stim trials
+                chs = obj.channels.name;
+                
+                if ~isempty(dir) % save to dir, don't show plot
+                    f = figure('Position', [200, 200, 600, 800], 'visible', 'off');
+                else
+                    figure('Position', [200, 200, 600, 800]);
+                end
+                hold on;
+                
+                for jj = 1:size(chs, 1)
+                    plot(obj.tt, dataStim(:, jj)-(jj-1)*500, 'LineWidth', 1); % channel
+                    yline(-(jj-1)*500, 'Color', 0.5*[1, 1, 1]);
+                end
+                xline(0, 'Color', 'r');
+                plot([0.05 0.05], [250 750], 'k', 'LineWidth', 2); % scale
+                text(0.055, 500, '500 \muV');
+                hold off
+                
+                xlim([min(trange), max(trange)]);
+                ylim([-(jj+1)*500, 1000]); % [-1000 from bottom to 1000 from top]
+                xlabel('time (s)');
+                ylabel('recording electrodes');
+                set(gca, 'YTick', (-500)*(size(chs, 1)-1:-1:0), 'YTickLabel', flip(chs), 'FontSize', 10);
+                title(sprintf('Output from: %s', sites{ii}));
+                
+                if ~isempty(dir) % save to dir
+                    fprintf('Saving OUTPUT plot for %s\n', sites{ii});
+                    saveas(f, fullfile(dir, sprintf(fmt, obj.sub, sites{ii})), 'png');
+                    close(f);
+                end
+                
+            end
+            
+            if ~isempty(dir), obj.writeMeta(fullfile(dir, sprintf('metadata_%s_outgoingCCEP.txt', obj.sub)), sites); end % metadata about parameters
+        end
+        
+    end
+    
+    methods(Static)
+        
+        function objCat = catMef(varargin) % create a new PreprocesMef object by concatenating aross PreprocessMef objects
+            assert(isa(varargin{1}, 'PreprocessMef'), 'Inputs must be PreprocessMef objects');
+            objCat = copy(varargin{1}); % copy object so as to modify first obj
+            assert(~isempty(objCat.data), 'Object 1 not in trial structure -- cannot be concatenated');
+            
+            for ii = 2:length(varargin)
+                obj2 = varargin{ii}; % next object in line to be concatenated
+                
+                % Check for necessary/recommended matches
+                assert(~isempty(obj2.data), 'Object 1 not in trial structure -- cannot be concatenated');
+                assert(objCat.srate == obj2.srate, 'Sampling frequency mismatch with obj%d', ii);
+                assert(all(strcmp(objCat.channels.name, obj2.channels.name)), 'Channels mismatch with obj%d', ii);
+                assert(all(objCat.tt == obj2.tt), 'Time vector mismatch with obj%d', ii);
+                if ~strcmp(objCat.sub, obj2.sub), warning('Subject name mismatch with obj%d', ii); end
+                if ~strcmp(objCat.progress, obj2.progress), warning('Preprocessing mismatch with obj%d. Output progress will not capture this', ii); end
+                
+                % Concatenate events and data
+                objCat.evts = [objCat.evts; obj2.evts];
+                objCat.data = cat(3, objCat.data, obj2.data);
+                objCat.mefPath = sprintf('%s\n%s', objCat.mefPath, obj2.mefPath);
+                objCat.channelsPath = sprintf('%s\n%s', objCat.channelsPath, obj2.channelsPath);
+                objCat.eventsPath = sprintf('%s\n%s', objCat.eventsPath, obj2.eventsPath);
+            end
+            fprintf('Merged across %d PreprocessMef objects\n', ii);
+            objCat.concatenated = true;
+            objCat.progress = sprintf('%s\n> Merged across %d PreprocessMef objects', objCat.progress, ii);
+        end
+        
+    end
+    
+    
+    methods (Access = private) % helper functions
+        
+        function setSub(obj) % set subject name upon construction
+            try
+                pathInfo = dir(obj.channelsPath);
+                eles = split(pathInfo.name, '_');
+                obj.sub = eles{1};
+                fprintf('Subject name: %s\n', obj.sub);
+            catch
+                obj.sub = sprintf('random%s', char(randi([65, 90], 1, 4)));
+                warning('Could not extract subject id from mefPath. Setting to ''%s\n''', obj.sub);
+            end
+        end
+        
+        function sig = applyConversionFactor(obj, sig) % apply conversion factor to loaded mef data
+            convFac = obj.metadata.time_series_metadata.section_2.units_conversion_factor;
+            if convFac < 0 % TODO: change this after correcting xltec natus conversion factor
+                warning('Ignoring negative sign in conversion factor');
+                convFac = -convFac;
+            end
+            sig = sig*convFac;
+        end
+        
+        function changeName(obj) % replace hyphenated names in metadata with hyphen-removed names
+            for ii = 1:length(obj.channels.name)
+                obj.metadata.time_series_channels(ii).name = obj.channels.name(ii);
+            end
+        end
+        
+        function writeMeta(obj, path, chs) % write a metadata file for incoming/outgoing CCEP plots
+            f = fopen(path, 'w');
+            fprintf(f, '#%s\n', datetime);
+            fprintf(f, 'MefPath: %s\nChannelsPath: %s\nEventsPath: %s\n', obj.mefPath, obj.channelsPath, obj.eventsPath);
+            fprintf(f, '#\nProgress:\n%s\n', obj.progress);
+            fprintf(f, '#\nSaved:');
+            for ii = 1:size(chs, 1)
+                fprintf(f, sprintf(' %s', chs{ii}));
+            end
+            fclose(f);
+        end
+        
+    end
+    
+end
