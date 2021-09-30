@@ -60,7 +60,7 @@
 %
 %   Common average rereferencing. If mefObj.dataAll exists, this call applies ieeg_car from mnl_ieegBasics, across all status=='good' channels. If mefObj.data
 %   exists, this call applies ccep_CAR or ccep_CAR64blocks from mnl_ieegBasics on each trial separately. This CANNOT be performed on a concatenated ccep_PreprocessMef
-%   object (PreprocessMef.catMef below), and SHOULD NOT be performed after mefObj.pruneChannels is called.
+%   object (ccep_PreprocessMef.catMef below), and SHOULD NOT be performed after mefObj.pruneChannels is called.
 %   >> mefObj.car;
 %   >> mefObj.car(by64);
 %       by64 =                  (optional) logical, default = false. If true, ccep_CAR64blocks is used instead of ccep_CAR, which applies a separate rereference
