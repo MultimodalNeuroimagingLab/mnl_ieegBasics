@@ -77,7 +77,8 @@
 %                                   [60, 120, 180] Hz or [50, 100, 150] Hz.
 %       'SpectrumEstimation'    Removes line noise with the spectrum interpolation method (mnl_ieegBasics/external/removeLineNoise_SpectrumEstimation.m).
 %                                   opts gets passed to the opts input of that function. Default = 'LF = 60, NH = 3, HW = 3' (line noise fundamental freq =
-%                                   60 Hz, remove 3 harmonics, half-width = 3 Hz).
+%                                   60 Hz, remove 3 harmonics, half-width =
+%                                   3 Hz), can also use something like 'LF = 60, NH = 3, HW = 3, M = 4096'
 %
 %   Prune channels to keep only channels of interest (to save memory). Modifies mefObj.channels, mefObj.dataAll (if exists), mefObj.data (if exists)
 %   >> mefObj.pruneChannels(chList);
@@ -175,10 +176,10 @@
 %   >> mefObj.removeLN('notch');                                    % remove line noise from each channel using notch filter
 %   >> mefObj.loadMefTrials([-1.5, 2.5], eventsPath);               % convert dataAll to trial structure, from -1.5 to 2.5s around onset. eventsPath needed because it wasn't given at construction
 %   >> mefObj.car;                                                  % apply common average reference without restricting to 64-ch blocks
-%   >> mefObj.subtractBaseline([-1, 0.005], 'median');              % subtract baseline from each trial calculated as the median from -1s to -0.005s
+%   >> mefObj.subtractBaseline([-1, -0.005], 'median');             % subtract baseline from each trial calculated as the median from -1s to -0.005s
 %   >> mefObj.progress;                                             % display preprocessing progress
 %   >> mefObj.plotInputs({'RA1', 'RA2', 'RC4'}, [-0.1, 1]);         % open plots of incoming CCEPs to 3 channels for inspection, from -0.1s to 1s around trial onset
-%   >> mefObj.plotOuputs(5:10, [-0.1, 1]);                          % open plots of outgoing CCEPs from 6 stim sites for inspection, from -0.1s to 1s around trial onset
+%   >> mefObj.plotOutputs(5:10, [-0.1, 1]);                         % open plots of outgoing CCEPs from 6 stim sites for inspection, from -0.1s to 1s around trial onset
 %
 % Harvey Huang 2021
 %   Todo:
