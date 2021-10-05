@@ -1,6 +1,6 @@
 %
 %   Applies common average referencing to CCEP data from blocks of 64 channels. Assumes that noise is shared between
-%       contiguous 64-channel blocks, starting at channel 1.
+%       contiguous 64-channel blocks, starting at channel 1. Non-ephys channels are returned unchanged
 %   Excludes:
 %       - Channels being stimulated in each trial
 %       - Channels with high variance from 500-1000 ms after stimulation onset
@@ -32,6 +32,7 @@ function signaldata = ccep_CAR(signaldata, tt, chTbl, stimNames, pctThresh, rati
     if nargin < 6 || isempty(ratioThresh), ratioThresh = 1.5; end
     if nargin < 5 || isempty(pctThresh), pctThresh = 95; end
     
+    ephys_channels = find(ismember(upper(chTbl.type), {'SEEG', 'ECOG'}));
     good_channels = find(strcmp(chTbl.status, 'good') & ismember(upper(chTbl.type), {'SEEG', 'ECOG'}));
 
     numVarExclude = zeros([size(signaldata, 3), 1]); % track how many channels are variance-excluded per trial
@@ -56,7 +57,7 @@ function signaldata = ccep_CAR(signaldata, tt, chTbl, stimNames, pctThresh, rati
         numRespExclude(kk) = length(intersect(find(var_early./var_late > ratioThresh & var_early > maxEarlyVar), chs_incl));
         chs_incl = setdiff(chs_incl, find(var_early./var_late > ratioThresh & var_early > maxEarlyVar)); % exclude channels with responses
 
-        signaldata(:, :, kk) = signaldata(:, :, kk) - mean(signaldata(chs_incl, :, kk), 1); % subtract CAR
+        signaldata(ephys_channels, :, kk) = signaldata(ephys_channels, :, kk) - mean(signaldata(chs_incl, :, kk), 1); % subtract CAR from ephys channels
 
     end
     

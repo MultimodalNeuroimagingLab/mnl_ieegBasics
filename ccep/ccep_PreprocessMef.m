@@ -40,6 +40,12 @@
 %                                   mefObj is a concatenated ccep_PreprocessMef object (catMef, below), then each field will contain multiple lines,
 %                                   corresponding to each concatenated ccep_PreprocessMef object, in order of concatenation.
 %
+%   Filter events by column values. Keeps only the events where events.<Name> corresponds to elements in events.<Value>. Deletes the other events
+%   Can input multiple Name, Value pairs
+%   >> mefObj.filterEvents(Name, Value, ...);
+%       Name =                  char array. Column name in mefObj.evts to indicate which column to look for matches. E.g. 'electrical_stimulation_current'
+%       Value =                 char array or cell array of chars to match in mefObj.evts.<Name>. E.g. '6.0 mA' or {'4.0 mA', '6.0 mA'}
+%
 %   Load all data from mefPath in a ch x timepoints array. Data is loaded as mefObj.dataAll. Also configures mefObj.metadata and mefObj.srate
 %   >> mefObj.loadMefAll;
 %
@@ -77,8 +83,7 @@
 %                                   [60, 120, 180] Hz or [50, 100, 150] Hz.
 %       'SpectrumEstimation'    Removes line noise with the spectrum interpolation method (mnl_ieegBasics/external/removeLineNoise_SpectrumEstimation.m).
 %                                   opts gets passed to the opts input of that function. Default = 'LF = 60, NH = 3, HW = 3' (line noise fundamental freq =
-%                                   60 Hz, remove 3 harmonics, half-width =
-%                                   3 Hz), can also use something like 'LF = 60, NH = 3, HW = 3, M = 4096'
+%                                   60 Hz, remove 3 harmonics, half-width = 3 Hz). E.g. also set window to 4096 samps: 'LF = 60, NH = 3, HW = 3, M = 4096'.
 %
 %   Prune channels to keep only channels of interest (to save memory). Modifies mefObj.channels, mefObj.dataAll (if exists), mefObj.data (if exists)
 %   >> mefObj.pruneChannels(chList);
@@ -109,7 +114,8 @@
 %                                   E.g. using default fmt, if mefObj.sub == 'sub-harbo' and the current channel plotted is 'RA1', the file saved would be at
 %                                   '<dir>/sub-harbo_incomingCCEP_RA1.png'.
 %
-%   Generate plots of outgoing CCEPs from all stimulated electrode pairs or stim pairs of interest. Plots are opened if no <dir> input given, or saved without
+%   Generate plots of outgoing CCEPs from all stimulated electrode pairs or stim pairs of interest. No more than 128 channels are plotted to a single figure;
+%   Plots are opened if no <dir> input given, or saved without
 %   opening if <dir> input given. If <dir> is given, a metadata file named 'metadata_<mefObj.sub>_outgoingCCEP.txt' is also written to <dir>, containing info on
 %   the date/time the command was executed, the paths used to to load the data, preprocessing steps executed, and stim pairs saved.
 %   >> mefObj.plotOutputs;
@@ -149,13 +155,14 @@
 %
 % EXAMPLES:
 %
-%   Ex. 1. Create a ccep_PreprocessMef object by loading directly as trials. Apply common average referencing by 64-ch blocks, prune down to first 20 channels,
-%   remove line noise by spectrum interpolation, and subtract mean baseline. Save all input and output CCEP plots to an output directory for preliminary viewing.
-%   Extract channels and data as a separate variables
+%   Ex. 1. Create a ccep_PreprocessMef object by loading directly as trials. Keep only 4.0mA and 6.0mA trials.
+%   Apply common average referencing by 64-ch blocks, prune down to first 20 channels, remove line noise by spectrum interpolation, and subtract mean baseline.
+%   Save all input and output CCEP plots to an output directory for preliminary viewing. Extract channels and data as a separate variables   
 %   >> mefPath = '/path/to/file.mefd';                              % paths to inputs
 %   >> channelsPath = '/path/to/channels.tsv';
 %   >> eventsPath = '/path/to/events.tsv';
 %   >> mefObj = ccep_PreprocessMef(mefPath, channelsPath, eventsPath);   % construct ccep_PreprocessMef object, with eventsPath
+%   >> mefObj.filterEvents('electrical_stimulation_current', {'4.0 mA', '6.0 mA'}); % keep only events with stim current == 4.0 or 6.0 mA
 %   >> mefObj.loadMefTrials([-1, 2]);                               % load mef data for each trial from -1 to 2s around onset
 %   >> mefObj.car(true);                                            % apply common average reference by 64-ch block
 %   >> mefObj.pruneChannels(1:20);                                  % keep only the first 20 channels
@@ -180,6 +187,16 @@
 %   >> mefObj.progress;                                             % display preprocessing progress
 %   >> mefObj.plotInputs({'RA1', 'RA2', 'RC4'}, [-0.1, 1]);         % open plots of incoming CCEPs to 3 channels for inspection, from -0.1s to 1s around trial onset
 %   >> mefObj.plotOutputs(5:10, [-0.1, 1]);                         % open plots of outgoing CCEPs from 6 stim sites for inspection, from -0.1s to 1s around trial onset
+%
+%   Ex. 3. Load 3 ccep_PreprocessMef objects and concatenate them
+%   (Assume mefPaths, channelsPaths, and eventsPaths are length-3 cell array of char paths to their respective files)
+%   >> mefObjs = cell(1, 3);                                        % initialize empty cell array to store mefObjs
+%   >> for ii = 1:3
+%   >>      mefObjs{ii} = ccep_PreprocessMef(mefPaths{ii}, channelsPaths{ii}, eventsPaths{ii}); % construct ccep_PreprocessMef object with each set of paths
+%   >>      mefObjs{ii}.loadMefTrials([-1, 2]);                     % load mef data for each trial
+%   >>      ...                                                     % perform the necessary preprocessing steps
+%   >> end
+%   >> mefObjCat = ccep_PreprocessMef.catMef(mefObjs{:});              % unpack cell array of ccep_PreprocessMef objects and concatenate to a single object
 %
 % Harvey Huang 2021
 %   Todo:
@@ -230,11 +247,21 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 obj.evts = readtable(eventsPath, 'FileType', 'text', 'Delimiter', '\t'); % if not CCEP events
             end
             
+            try
+                stimType = join(unique(obj.evts.electrical_stimulation_type), ', ');
+                dur = unique(obj.evts.duration); assert(length(dur) == 1, 'More than 1 stim duration in events');
+                current = join(unique(obj.evts.electrical_stimulation_current), ', ');
+                fprintf('Electrical stimulation type: %s; duration: %.02e; current: %s\n', stimType{1}, dur, current{1});
+            catch
+                pass
+            end
+            
             try % remove bad trials
                 fprintf('Removing %d not good events\n', sum(~strcmpi(obj.evts.status, 'good')));
                 obj.evts(~strcmpi(obj.evts.status, 'good'), :) = [];
+                obj.progress = sprintf('%s\n> Removed non-''good'' events', obj.progress);
             catch
-                warning('Could not remove events from status column');
+                warning('Could not remove non-''good'' events from obj.evts.status');
             end
         end
         
@@ -245,12 +272,25 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             paths.events = obj.eventsPath;
         end
         
+        function filterEvents(obj, varargin) % Keeps only events that satisfy input requirements
+            for ii = 1:2:length(varargin)-1 % iterate thru and remove all lines that do not satisfy input requirements
+                key = varargin{ii}; val = varargin{ii+1};
+                if ischar(val), val = {val}; end
+                valStr = join(val, ', ');
+                if ~sum(ismember(obj.evts.(key), val))
+                    error('Cannot find any matches for %s in obj.%s', valStr{1}, key);
+                end
+                obj.evts(~ismember(obj.evts.(key), val), :) = [];
+                obj.progress = sprintf('%s\n> Filtered obj.%s for %s', obj.progress, key, valStr{1});
+            end
+        end
+        
         function loadMefAll(obj) % load ch x time points matrix of entire mef data
             disp('Loading FULL mef data');
             channelsMef = readtable(obj.channelsPath, 'FileType', 'text', 'Delimiter', '\t'); % preserve names to load mef
             [obj.metadata, obj.dataAll] = readMef3(obj.mefPath, [], channelsMef.name);
             obj.srate = obj.metadata.time_series_metadata.section_2.sampling_frequency;
-            obj.dataAll = obj.applyConversionFactor(obj.dataAll); % apply conversion upon loading
+            %obj.dataAll = obj.applyConversionFactor(obj.dataAll); % apply conversion upon loading. 2021/10/05 - commented out because this is being done in matmef
             obj.changeName(); % remove hyphenated names
             obj.progress = 'Loaded all data';
         end
@@ -259,7 +299,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             assert(~isempty(obj.dataAll), 'highpass can only be applied to dataAll (channels x timepoints)');
             disp('Applying highpass filter');
             obj.dataAll = ieeg_highpass(obj.dataAll', obj.srate)';
-            obj.progress = sprintf('%s\n> high-pass filter', obj.progress);
+            obj.progress = sprintf('%s\n> High-pass filter', obj.progress);
         end
         
         function loadMefTrials(obj, trange, eventsPath) % convert dataAll to ch x time points x trials, or load directly from mefd 
@@ -270,6 +310,15 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                     obj.evts = readtableRmHyphens(eventsPath, 'electrical_stimulation_site', 1);
                 catch
                     obj.evts = readtable(eventsPath, 'FileType', 'text', 'Delimiter', '\t'); % if not CCEP events
+                end
+                
+                try % print some info electrical stim info about the events
+                    stimType = join(unique(obj.evts.electrical_stimulation_type), ', ');
+                    dur = unique(obj.evts.duration); assert(length(dur) == 1, 'More than 1 stim duration in events');
+                    current = join(unique(obj.evts.electrical_stimulation_current), ', ');
+                    fprintf('Electrical stimulation type: %s; duration: %.02e; current: %s\n', stimType{1}, dur, current{1});
+                catch
+                    pass
                 end
             elseif isempty(obj.evts)
                 error('Path to events file must be input as 3rd argument');
@@ -297,7 +346,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 channelsMef = readtable(obj.channelsPath, 'FileType', 'text', 'Delimiter', '\t'); % preserve names to load mef
                 [~, obj.data] = readMef3(obj.mefPath, [], channelsMef.name, 'samples', ranges);
                 obj.changeName(); % remove hyphenated names
-                obj.data = obj.applyConversionFactor(obj.data); % apply conversion upon loading
+                %obj.data = obj.applyConversionFactor(obj.data); % apply conversion upon loading. 2021/10/05 - commented out because it is being done in matmef
                 obj.progress = 'Loaded data in trials';
             end
         end
@@ -373,13 +422,25 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                         assert(isempty(obj.data), 'trial data shouldn''t exist if dataAll still exists');
                         disp('Removing line noise on dataAll with removeLineNoise_SpectrumEstimation');
                         obj.dataAll = removeLineNoise_SpectrumEstimation(obj.dataAll, obj.srate, opts, true);
+                        if ~isreal(obj.dataAll)
+                            warning('Line noise removal yielded complex outputs for some channels (e.g. digitalinputs). Keeping real part only');
+                            obj.dataAll = real(obj.dataAll);
+                        end
                     elseif isempty(obj.dataAll) && ~isempty(obj.data)
                         disp('Removing line noise on trial data with removeLineNoise_SpectrumEstimation');
                         for ii = 1:size(obj.data, 1)
                             fprintf('.');
-                            obj.data(ii, :, :) = removeLineNoise_SpectrumEstimation(squeeze(obj.data(ii, :, :))', obj.srate, opts, false)';
+                            try
+                                obj.data(ii, :, :) = removeLineNoise_SpectrumEstimation(squeeze(obj.data(ii, :, :))', obj.srate, opts, false)';
+                            catch
+                                warning('Could not remove line noise for channel %s (likely contains nan values)', obj.channels.name{ii});
+                            end
                         end
                         fprintf('\n');
+                        if ~isreal(obj.data)
+                            warning('Line noise removal yielded complex outputs for some channels (e.g. digitalinputs). Keeping real part only');
+                            obj.data = real(obj.data);
+                        end
                     else, error('Either dataAll or data (not both) needs to exist');
                     end
                     obj.progress = sprintf('%s\n> Removed line noise with spectrum estimation; settings: %s', obj.progress, opts);
@@ -408,7 +469,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
         function plotInputs(obj, chs, trange, dir, fmt) % generate/save prelim incoming CCEP plots
             assert(~isempty(obj.data), 'Plots can only be generated from trial data');
             
-            if nargin < 5, fmt = '%s_incomingCCEP_%s.png'; end % string formatting to save images
+            if nargin < 5, fmt = '%s_incomingCCEP_%s'; end % string formatting to save images
             assert(count(fmt, '%s') == 2, 'fmt needs to contain exactly 2 ''%s''s');
             
             if nargin < 4, dir = []; end
@@ -425,7 +486,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             for ii = 1:length(chs)
                 dataCh = squeeze(obj.data(strcmpi(obj.channels.name, chs{ii}), :, :));
                 assert(~isempty(dataCh), 'No input data to channel %s', chs{ii});
-                stimSites = unique(obj.evts.electrical_stimulation_site);
+                stimSites = unique(obj.evts.electrical_stimulation_site, 'stable');
                 
                 if ~isempty(dir) % save to dir, don't show plot
                     f = figure('Position', [200, 200, 600, 800], 'visible', 'off');
@@ -434,9 +495,11 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 end
                 hold on;
                 for jj = 1:size(stimSites, 1)
+                    yline(-(jj-1)*500, 'Color', 0.5*[1, 1, 1]);
+                    if ismember(chs{ii}, split(stimSites{jj}, '-')), continue; end % don't plot stimulated channel
+                    
                     meanTrial = mean(dataCh(:, strcmp(obj.evts.electrical_stimulation_site, stimSites{jj})), 2);
                     plot(obj.tt, meanTrial-(jj-1)*500, 'LineWidth', 1);
-                    yline(-(jj-1)*500, 'Color', 0.5*[1, 1, 1]);
                 end
                 xline(0, 'Color', 'r');
                 plot([0.05 0.05], [250 750], 'k', 'LineWidth', 2); % scale
@@ -457,13 +520,13 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 end
             end
             
-            if ~isempty(dir), obj.writeMeta(fullfile(dir, sprintf('metadata_%s_incomingCCEP.txt', obj.sub)), chs); end % metadata about parameters
+            if ~isempty(dir), obj.writeMeta(fullfile(dir, sprintf('metadata_%s.txt', sprintf(fmt, obj.sub, 'ch'))), chs); end % metadata about parameters
         end
         
         function plotOutputs(obj, sites, trange, dir, fmt) % generate/save prelim outgoing CCEP plots
             assert(~isempty(obj.data), 'Plots can only be generated from trial data');
             
-            if nargin < 5, fmt = '%s_outgoingCCEP_%s.png'; end % string formatting to save images
+            if nargin < 5, fmt = '%s_outgoingCCEP_%s'; end % string formatting to save images
             assert(count(fmt, '%s') == 2, 'fmt needs to contain exactly 2 ''%s''s');
             
             if nargin < 4, dir = []; end
@@ -484,40 +547,61 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 dataStim = obj.data(:, :, strcmpi(obj.evts.electrical_stimulation_site, sites{ii})); % transpose to match plotInput structure
                 assert(~isempty(dataStim), 'No output data from stim site %s', sites{ii});
                 dataStim = mean(dataStim, 3)'; % mean across stim trials
-                chs = obj.channels.name;
+                chs = obj.channels.name; % all channels
                 
-                if ~isempty(dir) % save to dir, don't show plot
-                    f = figure('Position', [200, 200, 600, 800], 'visible', 'off');
-                else
-                    figure('Position', [200, 200, 600, 800]);
-                end
-                hold on;
+                % how many figures to divide channels into
+                nBlocks = ceil(length(chs)/128);
+                chBlockSize = ceil(length(chs)/nBlocks);
                 
-                for jj = 1:size(chs, 1)
-                    plot(obj.tt, dataStim(:, jj)-(jj-1)*500, 'LineWidth', 1); % channel
-                    yline(-(jj-1)*500, 'Color', 0.5*[1, 1, 1]);
-                end
-                xline(0, 'Color', 'r');
-                plot([0.05 0.05], [250 750], 'k', 'LineWidth', 2); % scale
-                text(0.055, 500, '500 \muV');
-                hold off
+                for nn = 1:nBlocks
+                    
+                    chStart = (nn-1)*chBlockSize + 1;
+                    chEnd = min(nn*chBlockSize, length(chs));
+                    chsCurr = chs(chStart:chEnd);
                 
-                xlim([min(trange), max(trange)]);
-                ylim([-(jj+1)*500, 1000]); % [-1000 from bottom to 1000 from top]
-                xlabel('time (s)');
-                ylabel('recording electrodes');
-                set(gca, 'YTick', (-500)*(size(chs, 1)-1:-1:0), 'YTickLabel', flip(chs), 'FontSize', 10);
-                title(sprintf('Output from: %s', sites{ii}));
+                    if ~isempty(dir) % save to dir, don't show plot
+                        f = figure('Position', [200, 200, 600, 800], 'visible', 'off');
+                    else
+                        figure('Position', [200, 200, 600, 800]);
+                    end
+                    hold on;
+
+                    for jj = 1:length(chsCurr)
+                        yline(-(jj-1)*500, 'Color', 0.5*[1, 1, 1]);
+                        if ismember(chsCurr{jj}, split(sites{ii}, '-')), continue; end % skip stimulated channel
+                        
+                        plot(obj.tt, dataStim(:, chStart+jj-1)-(jj-1)*500, 'LineWidth', 1); % channel
+                    end
+                    xline(0, 'Color', 'r');
+                    plot([0.05 0.05], [250 750], 'k', 'LineWidth', 2); % scale
+                    text(0.055, 500, '500 \muV');
+                    hold off
+
+                    xlim([min(trange), max(trange)]);
+                    ylim([-(jj+1)*500, 1000]); % [-1000 from bottom to 1000 from top]
+                    xlabel('time (s)');
+                    ylabel('recording electrodes');
+                    set(gca, 'YTick', (-500)*(size(chsCurr, 1)-1:-1:0), 'YTickLabel', flip(chsCurr), 'FontSize', 10);
+                    
+                    if nBlocks == 1
+                        title(sprintf('Output from: %s', sites{ii}));
+                        fmtCurr = fmt;
+                    else % indicate in title and file name which block we are in
+                        title(sprintf('Output from: %s (%d/%d)', sites{ii}, nn, nBlocks));
+                        fmtCurr = sprintf('%s_%dof%d', fmt, nn, nBlocks);
+                    end
+
+                    if ~isempty(dir) % save to dir
+                        fprintf('Saving OUTPUT plot (%d) for %s\n', nn, sites{ii});
+                        saveas(f, fullfile(dir, sprintf(fmtCurr, obj.sub, sites{ii})), 'png');
+                        close(f);
+                    end
                 
-                if ~isempty(dir) % save to dir
-                    fprintf('Saving OUTPUT plot for %s\n', sites{ii});
-                    saveas(f, fullfile(dir, sprintf(fmt, obj.sub, sites{ii})), 'png');
-                    close(f);
                 end
                 
             end
             
-            if ~isempty(dir), obj.writeMeta(fullfile(dir, sprintf('metadata_%s_outgoingCCEP.txt', obj.sub)), sites); end % metadata about parameters
+            if ~isempty(dir), obj.writeMeta(fullfile(dir, sprintf('metadata_%s.txt', sprintf(fmt, obj.sub, 'stimSite'))), sites); end % metadata about parameters
         end
         
     end

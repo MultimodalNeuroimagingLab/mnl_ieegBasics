@@ -1,6 +1,7 @@
 %
 %   Applies common average referencing to CCEP data from blocks of 64 channels. Assumes that noise is shared between
-%       contiguous 64-channel blocks, starting at channel 1. Don't remove bad channels before inputting to this code
+%       contiguous 64-channel blocks, starting at channel 1. Don't remove bad channels before inputting to this code.
+%       Non-SEEG channels are returned unchanged.
 %   Excludes:
 %       - Channels being stimulated in each trial
 %       - Channels with high variance from 500-1000 ms after stimulation onset
@@ -33,6 +34,7 @@ function signaldata = ccep_CAR64blocks(signaldata, tt, chTbl, stimNames, pctThre
     if nargin < 5 || isempty(pctThresh), pctThresh = 95; end
     assert(ismember(1, find(strcmp(chTbl.type, 'SEEG'))), 'SEEG channels must begin at index 1'); 
     
+    nonSEEG_channels = find(~strcmp(chTbl.type, 'SEEG'));
     good_channels = find(strcmp(chTbl.status, 'good') & strcmp(chTbl.type, 'SEEG'));
 
     numVarExclude = zeros([size(signaldata, 3), 1]); % track how many channels are variance-excluded per trial
@@ -67,8 +69,8 @@ function signaldata = ccep_CAR64blocks(signaldata, tt, chTbl, stimNames, pctThre
         end
 
         for ii = 1:size(signaldata, 1)
-            if ~ismember(good_channels, ii) % set to nan if not good SEEG channel (meaningless to subtract CAR)
-                signaldata(ii, :, kk) = nan([1, size(signaldata, 2)]);
+            if ismember(ii, nonSEEG_channels)
+                continue % don't modify non-SEEG channel
             else
                 set_nr = ceil(ii/64);
                 signaldata(ii, :, kk) = signaldata(ii, :, kk) - car_sets(set_nr, :);
