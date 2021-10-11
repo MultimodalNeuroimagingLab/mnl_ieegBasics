@@ -234,6 +234,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             obj.channelsPath = channelsPath;
             obj.setSub;
             obj.channels = readtableRmHyphens(channelsPath);
+            obj.progress = 'Constructed object';
             
             if nargin < 3 % no events. Load later when putting into trial structure
                 disp('No events file loaded');
@@ -246,6 +247,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             catch
                 obj.evts = readtable(eventsPath, 'FileType', 'text', 'Delimiter', '\t'); % if not CCEP events
             end
+            obj.progress = sprintf('%s\n> Loaded events', obj.progress);
             
             try
                 stimType = join(unique(obj.evts.electrical_stimulation_type), ', ');
@@ -292,7 +294,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             obj.srate = obj.metadata.time_series_metadata.section_2.sampling_frequency;
             %obj.dataAll = obj.applyConversionFactor(obj.dataAll); % apply conversion upon loading. 2021/10/05 - commented out because this is being done in matmef
             obj.changeName(); % remove hyphenated names
-            obj.progress = 'Loaded all data';
+            obj.progress = sprintf('%s\n> Loaded all ch x time points mef data', obj.progress);
         end
         
         function highpass(obj) % apply highpass filter to dataAll (not to trial data because of strong edge effects)
@@ -311,6 +313,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 catch
                     obj.evts = readtable(eventsPath, 'FileType', 'text', 'Delimiter', '\t'); % if not CCEP events
                 end
+                obj.progress = sprintf('%s\n> Loaded events', obj.progress);
                 
                 try % print some info electrical stim info about the events
                     stimType = join(unique(obj.evts.electrical_stimulation_type), ', ');
@@ -347,7 +350,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 [~, obj.data] = readMef3(obj.mefPath, [], channelsMef.name, 'samples', ranges);
                 obj.changeName(); % remove hyphenated names
                 %obj.data = obj.applyConversionFactor(obj.data); % apply conversion upon loading. 2021/10/05 - commented out because it is being done in matmef
-                obj.progress = 'Loaded data in trials';
+                obj.progress = sprintf('%s\n> Loaded data in trials', obj.progress);
             end
         end
         
@@ -483,10 +486,11 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 if strcmp(answer, 'No, cancel'), return; end
             end  
             
+            stimSites = unique(obj.evts.electrical_stimulation_site, 'stable');
+            
             for ii = 1:length(chs)
                 dataCh = squeeze(obj.data(strcmpi(obj.channels.name, chs{ii}), :, :));
                 assert(~isempty(dataCh), 'No input data to channel %s', chs{ii});
-                stimSites = unique(obj.evts.electrical_stimulation_site, 'stable');
                 
                 if ~isempty(dir) % save to dir, don't show plot
                     f = figure('Position', [200, 200, 600, 800], 'visible', 'off');
@@ -531,7 +535,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             
             if nargin < 4, dir = []; end
             if nargin < 3 || isempty(trange), trange = [min(obj.tt), max(obj.tt)]; end
-            if nargin < 2 || isempty(sites), sites = obj.evts.electrical_stimulation_site; end % plot all stim sites
+            if nargin < 2 || isempty(sites), sites = unique(obj.evts.electrical_stimulation_site, 'stable'); end % plot all stim sites
             if isnumeric(sites)
                 allSites = unique(obj.evts.electrical_stimulation_site, 'stable'); % sort in order of first encounter
                 sites = allSites(sites);
@@ -543,11 +547,13 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 if strcmp(answer, 'No, cancel'), return; end
             end
             
+            chs = obj.channels.name; % all channels
+            status = obj.channels.status; % status of all channels
+            
             for ii = 1:length(sites)
                 dataStim = obj.data(:, :, strcmpi(obj.evts.electrical_stimulation_site, sites{ii})); % transpose to match plotInput structure
                 assert(~isempty(dataStim), 'No output data from stim site %s', sites{ii});
                 dataStim = mean(dataStim, 3)'; % mean across stim trials
-                chs = obj.channels.name; % all channels
                 
                 % how many figures to divide channels into
                 nBlocks = ceil(length(chs)/128);
@@ -558,6 +564,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                     chStart = (nn-1)*chBlockSize + 1;
                     chEnd = min(nn*chBlockSize, length(chs));
                     chsCurr = chs(chStart:chEnd);
+                    statusCurr = status(chStart:chEnd);
                 
                     if ~isempty(dir) % save to dir, don't show plot
                         f = figure('Position', [200, 200, 600, 800], 'visible', 'off');
@@ -569,6 +576,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                     for jj = 1:length(chsCurr)
                         yline(-(jj-1)*500, 'Color', 0.5*[1, 1, 1]);
                         if ismember(chsCurr{jj}, split(sites{ii}, '-')), continue; end % skip stimulated channel
+                        if ~strcmpi(statusCurr{jj}, 'good'), continue; end % 
                         
                         plot(obj.tt, dataStim(:, chStart+jj-1)-(jj-1)*500, 'LineWidth', 1); % channel
                     end
