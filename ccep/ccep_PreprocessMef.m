@@ -255,7 +255,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 current = join(unique(obj.evts.electrical_stimulation_current), ', ');
                 fprintf('Electrical stimulation type: %s; duration: %.02e; current: %s\n', stimType{1}, dur, current{1});
             catch
-                pass
+                %pass
             end
             
             try % remove bad trials
@@ -512,8 +512,8 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 
                 xlim([min(trange), max(trange)]);
                 ylim([-(jj+1)*500, 1000]); % [-1000 from bottom to 1000 from top]
-                xlabel('time (s)');
-                ylabel('stimulated electrodes');
+                xlabel('Time (s)');
+                ylabel('Stimulated Electrodes');
                 set(gca, 'YTick', (-500)*(size(stimSites, 1)-1:-1:0), 'YTickLabel', flip(stimSites), 'FontSize', 10);
                 title(sprintf('Input to: %s', chs{ii}));
                 
@@ -587,8 +587,8 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
 
                     xlim([min(trange), max(trange)]);
                     ylim([-(jj+1)*500, 1000]); % [-1000 from bottom to 1000 from top]
-                    xlabel('time (s)');
-                    ylabel('recording electrodes');
+                    xlabel('Time (s)');
+                    ylabel('Recording Electrodes');
                     set(gca, 'YTick', (-500)*(size(chsCurr, 1)-1:-1:0), 'YTickLabel', flip(chsCurr), 'FontSize', 10);
                     
                     if nBlocks == 1
