@@ -18,6 +18,7 @@ function ys = plotTrials(tt, data, yspace, labels, cm, varargin)
     if ~exist('cm', 'var') || isempty(cm)
         cm = get(0, 'DefaultAxesColorOrder'); 
     end
+    assert(length(labels) == size(data, 2), 'number of labels needs to match number of columns in data');
     
     numTrials = size(data, 2);
     tt = tt(:);
