@@ -44,11 +44,7 @@ function [tbl, origCol] = readtableRmHyphens(path, colName, numHyphens, varargin
                 
             case 1
                 assert(mod(length(eles), 2) == 0, "Must have even number of '-'-split elements if 1 hyphen is required");
-                if iscell(eles)
-                    col{cc} = join([join(eles{1:length(eles)/2}, ''), join(eles{length(eles)/2+1:end}, '')], '-');
-                else
-                    col(cc) = join([join(eles(1:length(eles)/2), ''), join(eles(length(eles)/2+1:end), '')], '-');
-                end
+                col(cc) = join([join(eles(1:length(eles)/2), ''), join(eles(length(eles)/2+1:end), '')], '-');
         end
         
     end
