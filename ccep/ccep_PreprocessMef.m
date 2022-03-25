@@ -100,13 +100,14 @@
 %   If <dir> is given, a metadata file named 'metadata_<mefObj.sub>_incomingCCEP.txt' is also written to <dir>, containing info on the date/time the command was
 %   executed, the paths used to to load the data, preprocessing steps executed, and channels saved.
 %   >> mefObj.plotInputs;
-%   >> mefObj.plotInputs(chs, trange);
+%   >> mefObj.plotInputs(chs, trange, yspace);
 %   >> mefObj.plotInputs(__, dir);
 %   >> mefObj.plotInputs(__, dir, fmt);
 %       chs =                   (optional) 1xn cell or integer. If not given, incoming CCEPs to all channels are plotted. If given, can be cell array of channel
 %                                   names, e.g. {'RA1', 'RA2', 'RC4'}; or integer array of channel indices, e.g. 21:30, to plot incoming CCEPs for.
 %       trange =                (optional) 1x2 double. [start, stop] time, in seconds, around each trial to plot the incoming CCEPs. If not given, the entire
 %                                   mefObj.tt is plotted.
+%       yspace =                (optional) positive double. The spacing between adjacent stim site lines. Essentially configures the gain of the plotted signals. Default = 500
 %       dir =                   (optional) char. Path to directory (folder) to save plots to. If not given, the plot at each channel will be opened without saving.
 %                                   If given, the plots will not be open but rather directly saved in <dir> instead.
 %       fmt =                   (optional) char. String formatting used to name the plots if saved to <dir>. Must contain 2 '%s', where the first one corresponds
@@ -119,7 +120,7 @@
 %   opening if <dir> input given. If <dir> is given, a metadata file named 'metadata_<mefObj.sub>_outgoingCCEP.txt' is also written to <dir>, containing info on
 %   the date/time the command was executed, the paths used to to load the data, preprocessing steps executed, and stim pairs saved.
 %   >> mefObj.plotOutputs;
-%   >> mefObj.plotOutputs(sites, trange);
+%   >> mefObj.plotOutputs(sites, trange, yspace, maxCh);
 %   >> mefObj.plotOutputs(__, dir);
 %   >> mefObj.plotOutputs(__, dir, fmt);
 %       sites =                 (optional) 1xn cell or integer. If not given, outgoing CCEPs from all stim electrode pairs are plotted. If given, can be
@@ -128,6 +129,8 @@
 %                                   outgoing CCEPs for.
 %       trange =                (optional) 1x2 double. [start, stop] time, in seconds, around each trial to plot the outgoing CCEPs. If not given, the entire
 %                                   mefObj.tt is plotted.
+%       yspace =                (optional) positive double. The spacing between adjacent channel lines. Essentially configures the gain of the plotted signals. Default = 500
+%       maxCh =                 (optional) positive integer. The maximum number of channels to plot on one plot. Default = 128.
 %       dir =                   (optional) char. Path to directory (folder) to save plots to. If not given, the plot for each stim pair will be opened without saving.
 %                                   If given, the plots will not be open but rather directly saved in <dir> instead.
 %       fmt =                   (optional) char. String formatting used to name the plots if saved to <dir>. Must contain 2 '%s', where the first one corresponds
@@ -469,13 +472,13 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             obj.progress = sprintf('%s\n> Subtracted %s baseline on [%.3f, %.3f] s', obj.progress, method, baseRange(1), baseRange(end));
         end
         
-        function plotInputs(obj, chs, trange, dir, fmt) % generate/save prelim incoming CCEP plots
+        function plotInputs(obj, chs, trange, yspace, dir, fmt) % generate/save prelim incoming CCEP plots
             assert(~isempty(obj.data), 'Plots can only be generated from trial data');
             
-            if nargin < 5, fmt = '%s_incomingCCEP_%s'; end % string formatting to save images
+            if nargin < 6, fmt = '%s_incomingCCEP_%s'; end % string formatting to save images
             assert(count(fmt, '%s') == 2, 'fmt needs to contain exactly 2 ''%s''s');
-            
-            if nargin < 4, dir = []; end
+            if nargin < 5, dir = []; end
+            if nargin < 4 || isempty(yspace), yspace = 500; end
             if nargin < 3 || isempty(trange), trange = [min(obj.tt), max(obj.tt)]; end
             if nargin < 2 || isempty(chs), chs = obj.channels.name; end % plot all channels
             if isnumeric(chs), chs = obj.channels.name(chs); end
@@ -499,22 +502,22 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 end
                 hold on;
                 for jj = 1:size(stimSites, 1)
-                    yline(-(jj-1)*500, 'Color', 0.5*[1, 1, 1]);
+                    yline(-(jj-1)*yspace, 'Color', 0.5*[1, 1, 1]);
                     if ismember(chs{ii}, split(stimSites{jj}, '-')), continue; end % don't plot stimulated channel
                     
                     meanTrial = mean(dataCh(:, strcmp(obj.evts.electrical_stimulation_site, stimSites{jj})), 2);
-                    plot(obj.tt, meanTrial-(jj-1)*500, 'LineWidth', 1);
+                    plot(obj.tt, meanTrial-(jj-1)*yspace, 'LineWidth', 1);
                 end
                 xline(0, 'Color', 'r');
-                plot([0.05 0.05], [250 750], 'k', 'LineWidth', 2); % scale
-                text(0.055, 500, '500 \muV');
+                plot([0.05 0.05], [yspace*0.5 yspace*1.5], 'k', 'LineWidth', 2); % scale
+                text(0.055, yspace, sprintf('%d \\muV', yspace));
                 hold off
                 
                 xlim([min(trange), max(trange)]);
-                ylim([-(jj+1)*500, 1000]); % [-1000 from bottom to 1000 from top]
+                ylim([-(jj+1)*yspace, 2*yspace]); % [-1000 from bottom to 1000 from top]
                 xlabel('Time (s)');
                 ylabel('Stimulated Electrodes');
-                set(gca, 'YTick', (-500)*(size(stimSites, 1)-1:-1:0), 'YTickLabel', flip(stimSites), 'FontSize', 10);
+                set(gca, 'YTick', (-yspace)*(size(stimSites, 1)-1:-1:0), 'YTickLabel', flip(stimSites), 'FontSize', 10);
                 title(sprintf('Input to: %s', chs{ii}));
                 
                 if ~isempty(dir) % save to dir
@@ -527,13 +530,14 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             if ~isempty(dir), obj.writeMeta(fullfile(dir, sprintf('metadata_%s.txt', sprintf(fmt, obj.sub, 'ch'))), chs); end % metadata about parameters
         end
         
-        function plotOutputs(obj, sites, trange, dir, fmt) % generate/save prelim outgoing CCEP plots
+        function plotOutputs(obj, sites, trange, yspace, maxCh, dir, fmt) % generate/save prelim outgoing CCEP plots
             assert(~isempty(obj.data), 'Plots can only be generated from trial data');
             
-            if nargin < 5, fmt = '%s_outgoingCCEP_%s'; end % string formatting to save images
+            if nargin < 7, fmt = '%s_outgoingCCEP_%s'; end % string formatting to save images
             assert(count(fmt, '%s') == 2, 'fmt needs to contain exactly 2 ''%s''s');
-            
-            if nargin < 4, dir = []; end
+            if nargin < 6, dir = []; end
+            if nargin < 5 || isempty(maxCh), maxCh = 128; end
+            if nargin < 4 || isempty(yspace), yspace = 500; end
             if nargin < 3 || isempty(trange), trange = [min(obj.tt), max(obj.tt)]; end
             if nargin < 2 || isempty(sites), sites = unique(obj.evts.electrical_stimulation_site, 'stable'); end % plot all stim sites
             if isnumeric(sites)
@@ -556,7 +560,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 dataStim = mean(dataStim, 3)'; % mean across stim trials
                 
                 % how many figures to divide channels into
-                nBlocks = ceil(length(chs)/128);
+                nBlocks = ceil(length(chs)/maxCh);
                 chBlockSize = ceil(length(chs)/nBlocks);
                 
                 for nn = 1:nBlocks
@@ -574,22 +578,22 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                     hold on;
 
                     for jj = 1:length(chsCurr)
-                        yline(-(jj-1)*500, 'Color', 0.5*[1, 1, 1]);
+                        yline(-(jj-1)*yspace, 'Color', 0.5*[1, 1, 1]);
                         if ismember(chsCurr{jj}, split(sites{ii}, '-')), continue; end % skip stimulated channel
                         if ~strcmpi(statusCurr{jj}, 'good'), continue; end % 
                         
-                        plot(obj.tt, dataStim(:, chStart+jj-1)-(jj-1)*500, 'LineWidth', 1); % channel
+                        plot(obj.tt, dataStim(:, chStart+jj-1)-(jj-1)*yspace, 'LineWidth', 1); % channel
                     end
                     xline(0, 'Color', 'r');
-                    plot([0.05 0.05], [250 750], 'k', 'LineWidth', 2); % scale
-                    text(0.055, 500, '500 \muV');
+                    plot([0.05 0.05], [yspace*0.5 yspace*1.5], 'k', 'LineWidth', 2); % scale
+                    text(0.055, yspace, sprintf('%d \\muV', yspace));
                     hold off
 
                     xlim([min(trange), max(trange)]);
-                    ylim([-(jj+1)*500, 1000]); % [-1000 from bottom to 1000 from top]
+                    ylim([-(jj+1)*yspace, 2*yspace]); % [-1000 from bottom to 1000 from top]
                     xlabel('Time (s)');
                     ylabel('Recording Electrodes');
-                    set(gca, 'YTick', (-500)*(size(chsCurr, 1)-1:-1:0), 'YTickLabel', flip(chsCurr), 'FontSize', 10);
+                    set(gca, 'YTick', (-yspace)*(size(chsCurr, 1)-1:-1:0), 'YTickLabel', flip(chsCurr), 'FontSize', 10);
                     
                     if nBlocks == 1
                         title(sprintf('Output from: %s', sites{ii}));
