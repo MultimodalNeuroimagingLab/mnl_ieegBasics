@@ -45,7 +45,7 @@ function [signal_hp] = ieeg_highpass(signal, srate, silent)
     for idx_channel = 1:size(signal, 2)
         
         warning('off', 'signal:filtfilt:ParseSOS');
-        signal_hp(:, idx_channel) = single(filtfilt(filtSos, filtOverallGain, double(signal(:, idx_channel))));
+        signal_hp(:, idx_channel) = filtfilt(filtSos, filtOverallGain, double(signal(:, idx_channel)));
         if silent == 0, fprintf(1, '.'); end
         
     end
