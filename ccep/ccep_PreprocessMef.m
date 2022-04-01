@@ -415,7 +415,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                         disp('Removing line noise on trial data with ieeg_notch');
                         for ii = 1:size(obj.data, 1)
                             fprintf('.');
-                            obj.data(ii, :, :) = ieeg_notch(squeeze(obj.data(ii, :, :)), obj.srate, opts, false);
+                            obj.data(ii, :, :) = ieeg_notch(squeeze(obj.data(ii, :, :)), obj.srate, opts, 2, false);
                         end
                         fprintf('\n');
                     else, error('Either dataAll or data (not both) needs to exist');
