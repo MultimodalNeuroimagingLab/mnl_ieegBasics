@@ -35,14 +35,20 @@ function elecsOut = sortElectrodes(elecsPath, channelsPath, saveFile)
 
     [~, locb] = ismember(channelNames, elecNames);
     
+    % varTypes in input cell, removing 
+    varTypes = cellfun(@class, table2cell(elecs(1, :)), 'UniformOutput', false);
+    varTypes(strcmp('char', varTypes)) = {'string'}; % so that Matlab doesn't scream at me for preallocating with 'char'
+    varTypes{1} = 'name'; % ignore first col for indexing purposes
     
-    %varTypes = cellfun(@class, table2cell(elecs(1, :)), 'UniformOutput', false);
-    %varTypes(strcmp('char', varTypes)) = {'string'}; % so that Matlab doesn't scream at me for preallocating with 'char'
     elecsOut = table('Size', [length(channelNames), length(elecs.Properties.VariableNames)], ...
                             'VariableNames', elecs.Properties.VariableNames, ...
                             'VariableTypes', repmat({'string'}, [1, length(elecs.Properties.VariableNames)]));
     elecsOut.name = channels.name; % save with original channel names (whether or not they had hyphens)
-    elecsOut(logical(locb), 2:end) = elecs(locb(locb > 0), 2:end);
+    elecsOut(logical(locb), ~strcmp(varTypes, 'double')) = elecs(locb(locb > 0), ~strcmp(varTypes, 'double')); % directly put in non-double rows
+    
+    % For double variable types, save explicitly with 8 digits of precision
+    numValues = table2cell(elecs(locb(locb > 0), strcmp(varTypes, 'double')));
+    elecsOut(logical(locb), strcmp(varTypes, 'double')) = cellfun(@(x) num2str(x, 8), numValues, 'UniformOutput', false);
     
     %nanRow = cell(1, length(varTypes)); % what to put into rows without input electrode info
     %nanRow(strcmpi(varTypes, 'double')) = {nan};
