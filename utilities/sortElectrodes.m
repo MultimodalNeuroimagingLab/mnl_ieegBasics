@@ -35,19 +35,26 @@ function elecsOut = sortElectrodes(elecsPath, channelsPath, saveFile)
 
     [~, locb] = ismember(channelNames, elecNames);
     
-    varTypes = cellfun(@class, table2cell(elecs(1, :)), 'UniformOutput', false);
-    varTypes(strcmp('char', varTypes)) = {'string'}; % so that Matlab doesn't scream at me for preallocating with 'char'
+    
+    %varTypes = cellfun(@class, table2cell(elecs(1, :)), 'UniformOutput', false);
+    %varTypes(strcmp('char', varTypes)) = {'string'}; % so that Matlab doesn't scream at me for preallocating with 'char'
     elecsOut = table('Size', [length(channelNames), length(elecs.Properties.VariableNames)], ...
                             'VariableNames', elecs.Properties.VariableNames, ...
-                            'VariableTypes', varTypes);
+                            'VariableTypes', repmat({'string'}, [1, length(elecs.Properties.VariableNames)]));
     elecsOut.name = channels.name; % save with original channel names (whether or not they had hyphens)
     elecsOut(logical(locb), 2:end) = elecs(locb(locb > 0), 2:end);
     
-    nanRow = cell(1, length(varTypes)); % what to put into rows without input electrode info
-    nanRow(strcmpi(varTypes, 'double')) = {nan};
-    nanRow(~strcmpi(varTypes, 'double')) = {'n/a'};
+    %nanRow = cell(1, length(varTypes)); % what to put into rows without input electrode info
+    %nanRow(strcmpi(varTypes, 'double')) = {nan};
+    %nanRow(~strcmpi(varTypes, 'double')) = {'n/a'};
+    nanRow = repmat({'n/a'}, [1, length(elecs.Properties.VariableNames)]); % row of all 'n/a's
     elecsOut(~logical(locb), 2:end) = repmat(nanRow(2:end), sum(~logical(locb)), 1);
     
+    % convoluted way of replacing <"missing"> values (previously NaN) with 'n/a' because fillmissing does not work with strings
+    C = table2cell(elecsOut);
+    C(ismissing(elecsOut)) = {'n/a'};
+    elecsOut = cell2table(C, 'VariableNames', elecsOut.Properties.VariableNames);
+        
     [saveDir, name] = fileparts(elecsPath);
     if saveFile
         outPath = fullfile(saveDir, sprintf('%s_sorted.tsv', name));
