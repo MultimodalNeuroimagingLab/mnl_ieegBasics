@@ -39,5 +39,6 @@ else
 end
 
 if saveNew==1
+    t_new = bids_tsv_nan2na(t_new);
     writetable(t_new, electrodes_tsv_name, 'FileType','text','Delimiter','\t'); 
 end
