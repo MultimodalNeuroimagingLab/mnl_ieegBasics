@@ -48,7 +48,9 @@ function elecsOut = sortElectrodes(elecsPath, channelsPath, saveFile)
     
     % For double variable types, save explicitly with 8 digits of precision
     numValues = table2cell(elecs(locb(locb > 0), strcmp(varTypes, 'double')));
-    elecsOut(logical(locb), strcmp(varTypes, 'double')) = cellfun(@(x) num2str(x, 8), numValues, 'UniformOutput', false);
+    numValuesStr = cellfun(@(x) num2str(x, 8), numValues, 'UniformOutput', false);
+    numValuesStr(strcmp(numValuesStr, 'NaN')) = {'n/a'}; % convert NaNs to 'n/a'
+    elecsOut(logical(locb), strcmp(varTypes, 'double')) = numValuesStr;
     
     %nanRow = cell(1, length(varTypes)); % what to put into rows without input electrode info
     %nanRow(strcmpi(varTypes, 'double')) = {nan};
@@ -57,9 +59,9 @@ function elecsOut = sortElectrodes(elecsPath, channelsPath, saveFile)
     elecsOut(~logical(locb), 2:end) = repmat(nanRow(2:end), sum(~logical(locb)), 1);
     
     % convoluted way of replacing <"missing"> values (previously NaN) with 'n/a' because fillmissing does not work with strings
-    C = table2cell(elecsOut);
-    C(ismissing(elecsOut)) = {'n/a'};
-    elecsOut = cell2table(C, 'VariableNames', elecsOut.Properties.VariableNames);
+%     C = table2cell(elecsOut);
+%     C(ismissing(elecsOut)) = {'n/a'};
+%     elecsOut = cell2table(C, 'VariableNames', elecsOut.Properties.VariableNames);
         
     [saveDir, name] = fileparts(elecsPath);
     if saveFile
