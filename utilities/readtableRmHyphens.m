@@ -24,7 +24,7 @@
 function [tbl, origCol] = readtableRmHyphens(path, colName, numHyphens, varargin)
     
     if nargin < 4
-        tbl = readtable(path, 'FileType', 'text', 'Delimiter', '\t'); % default options for reading tsv files
+        tbl = readtable(path, 'FileType', 'text', 'Delimiter', '\t', 'TreatAsEmpty', 'n/a'); % default options for reading tsv files
     else
         tbl = readtable(path, varargin{:});
     end
@@ -36,6 +36,9 @@ function [tbl, origCol] = readtableRmHyphens(path, colName, numHyphens, varargin
     origCol = tbl.(colName);
     col = origCol;
     for cc = 1:length(col)
+        
+        if any(strcmp(col(cc), {'n/a', 'NaN'})), continue; end % ignore rows with NaN or n/a
+        
         eles = split(col(cc), '-');
         
         switch numHyphens

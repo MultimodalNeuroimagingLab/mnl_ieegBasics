@@ -12,6 +12,7 @@
 %       powerType =     (optional) char array, 'amplitude', 'power', or 'logpower'. The type of <power> output to
 %                           return. 'amplitude' returns the magnitude of the Hilbert transform. 'power' returns the
 %                           amplitude squared, and 'logpower' (default) returns the log10 transform of power.
+%       verbose =       (optional). Whether to print output
 %
 %   Returns:
 %       power =         txn double, power (see inputs) of input signal at all samples, corresponding to the input structure
@@ -19,10 +20,12 @@
 %
 %   HH 2021
 %       
-function [power, phase] = ieeg_getHilbert(sigdata, bands, srate, powerType)
+function [power, phase] = ieeg_getHilbert(sigdata, bands, srate, powerType, verbose)
     
+    if nargin < 5, verbose = false; end
+    if nargin < 4 || isempty(powerType), powerType = 'logpower'; end
+
     assert(size(sigdata, 1) > size(sigdata, 2), 'Data must have rows=samples and cols=trials');
-    if nargin < 4, powerType = 'logpower'; end
     
     if numel(bands) == 2, bands = bands(:)'; end % ensure row vector for 1 band
     assert(size(bands, 2) == 2, 'bands must be given as 2-column array [bandstart bandstop]');
@@ -31,16 +34,17 @@ function [power, phase] = ieeg_getHilbert(sigdata, bands, srate, powerType)
     phases = zeros(size(sigdata, 1), size(sigdata, 2), size(bands, 1));
     for ii = 1:size(bands, 1)
         
-        fprintf('Calculating amplitude between %d and %d Hz\n', bands(ii, 1), bands(ii, 2));
+        if verbose, fprintf('Calculating amplitude between %d and %d Hz\n', bands(ii, 1), bands(ii, 2)); end
         
-        sigdata_pass = ieeg_butterpass(sigdata, bands(ii, :), srate, true);
+        sigdata_pass = ieeg_butterpass(sigdata, bands(ii, :), srate, 1);
+        %sigdata_pass = ieeg_butterpass2(sigdata, bands(ii, :), srate);
         sigHilb = hilbert(sigdata_pass);
 
         powers(:, :, ii) = abs(sigHilb).^2;
         phases(:, :, ii) = angle(sigHilb);
     end
     
-    fprintf('Returning (combined) %s and phase\n', powerType);
+    if verbose, fprintf('Returning (combined) %s and phase\n', powerType); end
     power = geomean(powers, 3); % geometric mean of powers across bands
     phase = mean(phases, 3); % arithmetic mean of phases (needs verification)
 
