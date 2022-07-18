@@ -15,7 +15,13 @@
 
 function xyzs_pair = ieeg_getPairXyzs(pairs, electrodes)
     
-    assert(size(pairs, 2) == 2, 'pairs must be an nx2 cell array: col1=elec1, col2=elec2');
+    if size(pairs, 2) == 1 % assume given as single column like 'ch1-ch2'
+        try
+            pairs = split(pairs, '-', 2);
+        catch
+            error('If pairs is given as a single column, each row must be in the form ''ch1-ch2'' (hyphen-joined)');
+        end
+    end
 
     xyzs_pair = NaN(size(pairs, 1), 3);
     xyzs = [electrodes.x, electrodes.y, electrodes.z]; % ordered coordinates for the electrodes
