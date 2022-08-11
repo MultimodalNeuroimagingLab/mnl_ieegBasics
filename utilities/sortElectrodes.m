@@ -1,35 +1,43 @@
-%% Saves a sorted electrodes_sorted.tsv table by re-ordering rows in the input electrodes.tsv file according to the row 
-%   order of channel names in the input channels.tsv file.
 %
-%   This is relevant because the channels.tsv channel names match the ephys data channels, but the rows in
-%   electrodes.tsv are often arbitrarily sorted. T.f. the electrodes.tsv rows must be sorted in order to plot electrode
-%   positions that correspond correctly to row indices of ephys data.
+%   Reorders an electrode table or file according to the row order of channel names in a channels.tsv table or file
+%
+%   This is relevant because the channels.tsv channel names match the electrophysiological data channels, but the rows in
+%   electrodes.tsv are often arbitrarily sorted. Therefore the electrodes.tsv rows must be sorted in order to plot electrode
+%   positions that correspond correctly to row indices of electrophysiological data.
 %   
-%   sortElectrodes(elecPath, channelPath);
-%   elecsOut = sortElectrodes(elecPath, channelPath, saveFile);
-%       elecPath =      str, path to electrodes.tsv file
-%       channelPath =   str, path to channels.tsv file
-%       saveFile =      bool (optional). Whether to save the sorted electrodes to file (default = true)
+%   elecsOut = sortElectrodes(electrodes, channels, saveFile)
+%
+%       electrodes      = the electrodes to sort. Either as a table or as a filepath to electrodes.tsv file
+%       channels        = the channels that the electrodes will be sorted to (by name). Either as a table or as a filepath to electrodes.tsv file
+%       saveFile        = Whether to save the sorted electrodes to file (default = true). Will only
+%                         store if the electrodes argument is a file.
 %
 %   Returns:
-%       elecsOut =      table, rows of electrodes.tsv sorted in order of channel names in channels.tsv.
-%                           Channel names not found in electrodes.tsv (i.e. ends of leads without coordinates) will be
-%                           NaN rows in elecsOut, in order to align overall table structure with channels
-%                           NaN rows are saved to file as 'n/a' to match BIDS formatting
+%       elecsOut        = Table with the rows of electrodes.tsv sorted in order of channel names in channels.tsv
+%                         Channel names not found in electrodes.tsv (i.e. ends of leads without coordinates) will be
+%                         NaN rows in elecsOut, in order to align overall table structure with channels
+%                         NaN rows are saved to file as 'n/a' to match BIDS formatting
 %
-%   HH 2021
 %
-function elecsOut = sortElectrodes(elecsPath, channelsPath, saveFile)
+%   Harvey Huang, Multimodal Neuroimaging Lab, Mayo Clinic, 2021
+%
+function elecsOut = sortElectrodes(electrodes, channels, saveFile)
 
     if nargin < 3, saveFile = true; end
     
-    channels = readtable(channelsPath, 'FileType', 'text', 'Delimiter', '\t'); % keep hyphens for filename
-    elecs = readtable(elecsPath, 'FileType', 'text', 'Delimiter', '\t');
+    if ~istable(channels)
+        channels = readtable(channels, 'FileType', 'text', 'Delimiter', '\t'); % keep hyphens for filename
+    end
+    if istable(electrodes)
+        saveFile = false;
+        elecs = electrodes;
+    else
+        elecs = readtable(electrodes, 'FileType', 'text', 'Delimiter', '\t');
+    end
     
-    % RM hyphens
-    
-    elecNames = erase(strip(elecs.name), '-'); % delete hyphens from elecs and channels to ensure they match
-    channelNames = erase(strip(channels.name), '-');
+    % delete hyphens from elecs and channels to ensure they match
+    elecNames       = erase(strip(elecs.name), '-'); 
+    channelNames    = erase(strip(channels.name), '-');
     
     assert(length(unique(elecNames)) == length(elecNames), 'Repeated names in electrodes file');
     assert(length(unique(channelNames)) == length(channelNames), 'Repeated names in channels file');
@@ -70,8 +78,9 @@ function elecsOut = sortElectrodes(elecsPath, channelsPath, saveFile)
         if doubleCols(ii), elecsOut.(elecs.Properties.VariableNames{ii}) = double(elecsOut.(elecs.Properties.VariableNames{ii})); end
     end
 
-    [saveDir, name] = fileparts(elecsPath);
+    % 
     if saveFile
+        [saveDir, name] = fileparts(electrodes);
         outPath = fullfile(saveDir, sprintf('%s_sorted.tsv', name));
         if exist(outPath, 'file'), warning('Overwriting existing electrodes_sorted.tsv'); end
         writetable(elecsSave, outPath, 'FileType', 'text', 'Delimiter', '\t');
