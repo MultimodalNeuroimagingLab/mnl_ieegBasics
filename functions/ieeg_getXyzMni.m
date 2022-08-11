@@ -132,6 +132,8 @@ function xyzMni = ieeg_getXyzMni(xyz, niImageName, rootdir, minDist)
         elimg = spm_vol(fullfile(outdir, sprintf('mni_elVol_%d.nii', ii)));
         elvol = spm_read_vols(elimg);
         
+        elvol(isnan(elvol)) = 0; % remove NaNs
+        
         idxes = unique(elvol); % retrieve electrode indices, in ascending order
         idxes(idxes == 0) = [];
         
