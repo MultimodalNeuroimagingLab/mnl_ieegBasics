@@ -29,4 +29,5 @@ axis off
 set(gcf,'Renderer', 'zbuffer')
 view(270, 0);
 set(l1,'Position',[-1 0 1])
+hold off
 
