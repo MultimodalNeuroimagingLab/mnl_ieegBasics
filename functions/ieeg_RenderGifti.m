@@ -19,6 +19,7 @@ elseif ~isempty(varargin)
     c(sulcal_labels<0,:) = 0.7;
 end
 
+holding = ishold; % hold state of axes before rendering gifti
 
 tH = trimesh(g.faces, g.vertices(:,1), g.vertices(:,2), g.vertices(:,3), c); axis equal; hold on
 set(tH, 'LineStyle', 'none', 'FaceColor', 'interp', 'FaceVertexCData',c)
@@ -29,5 +30,6 @@ axis off
 set(gcf,'Renderer', 'zbuffer')
 view(270, 0);
 set(l1,'Position',[-1 0 1])
-hold off
+
+if ~holding, hold off; end
 
