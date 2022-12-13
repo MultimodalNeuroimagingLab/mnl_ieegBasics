@@ -1,10 +1,11 @@
-function xyz_inflated = ieeg_snap2inflated(loc_info,gR,gL,gR_infl,gL_infl)
+function xyz_inflated = ieeg_snap2inflated(loc_info,gR,gL,gR_infl,gL_infl,varargin)
 %
 %
 % Function snaps electrode positions to closest pial surface within <=5 mm
 % and returns corresponding inflated coordinates.
 %
 % Usage: xyz_inflated = ieeg_snap2inflated(loc_info,gR,gL,gR_infl,gL_infl)
+% Usage: xyz_inflated = ieeg_snap2inflated(loc_info,gR,gL,gR_infl,gL_infl,distLim)
 %
 % Inputs:
 % loc_info needs, x, y, z and hemisphere
@@ -12,6 +13,7 @@ function xyz_inflated = ieeg_snap2inflated(loc_info,gR,gL,gR_infl,gL_infl)
 % gL gifti of the pial surface of the left hemisphere
 % gR_infl gifti of the inflated surface of the right hemisphere
 % gL_infl gifti of the inflated surface of the left hemisphere
+% distLim: limit of the distance to pial surface
 %
 % Outputs:
 % xyz_inflated xyz coordinates on the inflated brain
@@ -19,6 +21,12 @@ function xyz_inflated = ieeg_snap2inflated(loc_info,gR,gL,gR_infl,gL_infl)
 % This function is WIP, probably needs some more testing
 %
 % DH, 2021
+
+if isempty(varargin)
+    distLim = 6;
+else
+    distLim = varargin{1};
+end
 
 
 elecmatrix = [loc_info.x loc_info.y loc_info.z];
@@ -49,7 +57,7 @@ for kk = 1:height(loc_info)
             % find closest point on gray surface
             dist_xyz2Surf = sqrt(sum((gR.vertices-xyz).^2,2));
             [minDist,ind_minDist] = min(dist_xyz2Surf);
-            if minDist < 6 % only find points less than 6 mm away
+            if minDist < distLim % only find points less than 6 mm away
                 xyz_surf(kk,:) = gR.vertices(ind_minDist,:);
                 surfIndex(kk) = ind_minDist;
                 xyz_inflated(kk,:) = gR_infl.vertices(ind_minDist,:);
@@ -66,7 +74,7 @@ for kk = 1:height(loc_info)
             % find closest point on gray surface
             dist_xyz2Surf = sqrt(sum((gL.vertices-xyz).^2,2));
             [minDist,ind_minDist] = min(dist_xyz2Surf);
-            if minDist < 6 % only find points less than 6 mm away
+            if minDist < distLim % only find points less than 6 mm away
                 xyz_surf(kk,:) = gL.vertices(ind_minDist,:);
                 surfIndex(kk) = ind_minDist;
                 xyz_inflated(kk,:) = gL_infl.vertices(ind_minDist,:);
