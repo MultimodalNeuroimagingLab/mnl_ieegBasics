@@ -26,6 +26,8 @@ function elecsOut = sortElectrodes(electrodes, channels, saveFile)
 
     if nargin < 3, saveFile = true; end
     
+    chann = channels;
+    
     if ~istable(channels)
         channels = readtable(channels, 'FileType', 'text', 'Delimiter', '\t'); % keep hyphens for filename
     end
@@ -78,11 +80,14 @@ function elecsOut = sortElectrodes(electrodes, channels, saveFile)
     for ii = 1:length(varTypes)
         if doubleCols(ii), elecsOut.(elecs.Properties.VariableNames{ii}) = double(elecsOut.(elecs.Properties.VariableNames{ii})); end
     end
-
+       
+    %Creating variable 'channel_path' to be used in generating the _electrodes_sorted.tsv
+    channel_path = extractBefore(chann, 'channels');
+    
     % 
     if saveFile
-        [saveDir, name] = fileparts(electrodes);
-        outPath = fullfile(saveDir, sprintf('%s_sorted.tsv', name));
+        [saveDir, name] = fileparts(channel_path);
+        outPath = fullfile(saveDir, sprintf('%selectrodes_sorted.tsv', name));
         if exist(outPath, 'file'), warning('Overwriting existing electrodes_sorted.tsv'); end
         writetable(elecsSave, outPath, 'FileType', 'text', 'Delimiter', '\t');
     end
