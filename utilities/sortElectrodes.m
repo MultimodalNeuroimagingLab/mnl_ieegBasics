@@ -20,7 +20,8 @@
 %
 %
 %   Harvey Huang, Multimodal Neuroimaging Lab, Mayo Clinic, 2021
-%
+%   MM Updating name for saving the sorted electrodes file, January 2023
+
 function elecsOut = sortElectrodes(electrodes, channels, saveFile)
 
     if nargin < 3, saveFile = true; end
