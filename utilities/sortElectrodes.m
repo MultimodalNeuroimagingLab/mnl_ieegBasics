@@ -26,7 +26,7 @@ function elecsOut = sortElectrodes(electrodes, channels, saveFile)
 
     if nargin < 3, saveFile = true; end
     
-    chann = channels;
+    chann = channels; % need chann as a string for the filename for saving later
     
     if ~istable(channels)
         channels = readtable(channels, 'FileType', 'text', 'Delimiter', '\t'); % keep hyphens for filename
