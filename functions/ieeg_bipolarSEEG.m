@@ -39,7 +39,7 @@
 %
 %   HH 2021
 %
-function [dataOut, bipolarChans, excludedChans] = ieeg_bipolarSEEG(dataIn, channelNames, badChans)
+function [dataOut, bipolarNames, badChansOut] = ieeg_bipolarSEEG(dataIn, channelNames, badChans)
     
     isDigit = @(x) x > 47 & x < 58; % returns true for char array elements that are digits (0 - 9)
     
@@ -49,54 +49,35 @@ function [dataOut, bipolarChans, excludedChans] = ieeg_bipolarSEEG(dataIn, chann
     channelNames(emptyChs) = []; dataIn(:, emptyChs) = [];
     channelNames = strip(upper(channelNames)); % some cleaning
     
-    leads = unique(cellfun(@(ch) ch(~isDigit(ch)), channelNames, 'UniformOutput', false)); % unique lead names
+    leads = unique(cellfun(@(ch) ch(~isDigit(ch)), channelNames, 'UniformOutput', false), 'stable'); % unique lead names
     leads(cellfun(@isempty, leads)) = []; % discard any channel names that don't contain letters
     
     channelPos = cellfun(@(ch) str2double(ch(isDigit(ch))), channelNames); % electrode position along lead for each channel
     channelChar = cellfun(@(ch) ch(~isDigit(ch)), channelNames, 'UniformOutput', false); % just the character name of each lead
     
     minuend = []; subtrahend = []; % which indices to subtract from which
-    bipolarChans = cell(0, 2); % 1st col = name, 2nd col = array of index pairs
-    excludedChans = []; % indices of good channels skipped over
+    badChansOut = [];
     for ll = 1:length(leads)
         
         [leadPos, ix] = sort(channelPos(strcmp(channelChar, leads{ll})));
         % Indices into input channels matching leadPos
         leadInds = find(strcmp(channelChar, leads{ll})); leadInds = leadInds(ix);
         
-        fprintf('Lead %s, pos 1 ... %d\n', leads{ll}, max(leadPos));
+        fprintf('Lead %s, contacts 1 ... %d\n', leads{ll}, max(leadPos));
         
         assert(length(unique(leadPos)) == length(leadPos), 'Repeated lead position in %s', leads{ll});
         
-        pp = 1; % position of minuend along current lead
-        while pp+1 <= max(leadPos)
-            
-            chPair = [leadInds(leadPos == pp); leadInds(leadPos == pp+1)]; % [minuend, subtrahend]
-            
-            if length(chPair) < 2 % both positions were not found
-                excludedChans = [excludedChans; chPair];
-                pp = pp + 2;
-                continue
-            end
-            
-            % check if either of bipolar pair is bad channel
-            badBool = ismember(chPair, badChans);
-            if any(badBool)
-                excludedChans = [excludedChans; chPair(~badBool)]; % append non-bad channels for record keeping
-                pp = pp + 2;
-                continue
-            end
-            
-            % e.g. LA1-LA2
-            minuend = [minuend; chPair(1)];
-            subtrahend = [subtrahend; chPair(2)];
-            bipolarChans = [bipolarChans; sprintf('%s%d-%s%d', leads{ll}, pp, leads{ll}, pp+1), {chPair'}];
-            
-            pp = pp + 2;
-        end
+        % add which indices to subtract from which
+        minuend = [minuend; leadInds(1:end-1)];
+        subtrahend = [subtrahend; leadInds(2:end)];
+        
     end
     
-    fprintf('Constructed %d bipolar channels. Excluded %d good channels.\n', length(minuend), length(excludedChans));
     dataOut = dataIn(:, minuend) - dataIn(:, subtrahend);
+    badChansOut = find(ismember(minuend, badChans) | ismember(subtrahend, badChans)); % determine which channels are bad
+    bipolarNames = join([channelNames(minuend), channelNames(subtrahend)], '-');
+        
+    fprintf('Constructed %d bipolar channels, %d of which are bad.\n', length(minuend), length(badChansOut));
+    
 
 end
