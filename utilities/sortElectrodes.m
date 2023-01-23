@@ -20,24 +20,27 @@
 %
 %
 %   Harvey Huang, Multimodal Neuroimaging Lab, Mayo Clinic, 2021
-%
+%   MM Updating name for saving the sorted electrodes file, January 2023
+
 function elecsOut = sortElectrodes(electrodes, channels, saveFile)
 
     if nargin < 3, saveFile = true; end
     
-    if ~istable(channels)
-        channels = readtable(channels, 'FileType', 'text', 'Delimiter', '\t'); % keep hyphens for filename
+    chann_path = channels; % need chann as a string for the filename for saving later
+    
+    if ~istable(electrodes)
+        elecs = readtable(electrodes, 'FileType', 'text', 'Delimiter', '\t'); % keep hyphens for filename
     end
-    if istable(electrodes)
+    if istable(channels)
         saveFile = false;
-        elecs = electrodes;
+        channs = channels;
     else
-        elecs = readtable(electrodes, 'FileType', 'text', 'Delimiter', '\t');
+        channs = readtable(channels, 'FileType', 'text', 'Delimiter', '\t');
     end
     
     % delete hyphens from elecs and channels to ensure they match
-    elecNames       = erase(strip(elecs.name), '-'); 
-    channelNames    = erase(strip(channels.name), '-');
+    channelNames       = erase(strip(channs.name), '-'); 
+    elecNames    = erase(strip(elecs.name), '-');
     
     assert(length(unique(elecNames)) == length(elecNames), 'Repeated names in electrodes file');
     assert(length(unique(channelNames)) == length(channelNames), 'Repeated names in channels file');
@@ -52,7 +55,7 @@ function elecsOut = sortElectrodes(electrodes, channels, saveFile)
     elecsSave = table('Size', [length(channelNames), length(elecs.Properties.VariableNames)], ...
                             'VariableNames', elecs.Properties.VariableNames, ...
                             'VariableTypes', repmat({'string'}, [1, length(elecs.Properties.VariableNames)]));
-    elecsSave.name = channels.name; % save with original channel names (whether or not they had hyphens)
+    elecsSave.name = channs.name; % save with original channel names (whether or not they had hyphens)
     elecsSave(logical(locb), ~strcmp(varTypes, 'double')) = elecs(locb(locb > 0), ~strcmp(varTypes, 'double')); % directly put in non-double rows
     
     % For double variable types, save explicitly with 8 digits of precision
@@ -77,11 +80,14 @@ function elecsOut = sortElectrodes(electrodes, channels, saveFile)
     for ii = 1:length(varTypes)
         if doubleCols(ii), elecsOut.(elecs.Properties.VariableNames{ii}) = double(elecsOut.(elecs.Properties.VariableNames{ii})); end
     end
-
+    
     % 
     if saveFile
-        [saveDir, name] = fileparts(electrodes);
-        outPath = fullfile(saveDir, sprintf('%s_sorted.tsv', name));
+        %Creating variable 'channel_path' to be used in generating the _electrodes_sorted.tsv
+        path_frag = extractBefore(chann_path, 'channels');
+
+        [saveDir, name] = fileparts(path_frag);
+        outPath = fullfile(saveDir, sprintf('%selectrodes_sorted.tsv', name));
         if exist(outPath, 'file'), warning('Overwriting existing electrodes_sorted.tsv'); end
         writetable(elecsSave, outPath, 'FileType', 'text', 'Delimiter', '\t');
     end
