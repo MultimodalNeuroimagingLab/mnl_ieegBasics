@@ -205,6 +205,10 @@
 %   Todo:
 %       - implement bipolar referencing option
 %
+%   Important discussion on whether high pass filtering and baseline subtraction should be done:
+%       van Driel, J., Olivers, C. N., & Fahrenfort, J. J. (2021). High-pass filtering artifacts in multivariate classification of neural time series data.
+%           Journal of Neuroscience Methods, 352, 109080.
+%
 classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
     
     properties % modifiable properties
