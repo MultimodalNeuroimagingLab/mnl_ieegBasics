@@ -341,20 +341,20 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             
             obj.tt = (0:(trange(end)-trange(1))*obj.srate-1)/obj.srate + trange(1); % samples around stim to return
             ranges = [obj.evts.sample_start + obj.tt(1)*obj.srate, ...
-                      obj.evts.sample_start + obj.tt(1)*obj.srate + length(obj.tt)]; % [start end] samples for each trial
+                      obj.evts.sample_start + obj.tt(1)*obj.srate + length(obj.tt)]; % [start end+1] samples for each trial. start is inclusive and corresponds to time 0. end is exclusive
             
             if ~isempty(obj.dataAll)
                 disp('Converting dataAll into trial structure');
                 obj.data = nan([height(obj.channels), length(obj.tt), height(obj.evts)]); % chs x time x trials
                 for ii = 1:height(obj.evts)
-                    obj.data(:, :, ii) = obj.dataAll(:, ranges(ii, 1)+1 : ranges(ii, 2)); % equivalent to readMef3 on ranges(tr, 1):ranges(tr, 2)
+                    obj.data(:, :, ii) = obj.dataAll(:, ranges(ii, 1) : ranges(ii, 2)-1); % equivalent to readMef3 on ranges(tr, 1)-1:ranges(tr, 2)-1.
                 end
                 obj.dataAll = []; % clear memory
                 obj.progress = sprintf('%s\n> Converted data to trials', obj.progress);
             else
                 disp('Loading data trials from mefd file');
                 channelsMef = readtable(obj.channelsPath, 'FileType', 'text', 'Delimiter', '\t'); % preserve names to load mef
-                [~, obj.data] = readMef3(obj.mefPath, [], channelsMef.name, 'samples', ranges);
+                [~, obj.data] = readMef3(obj.mefPath, [], channelsMef.name, 'samples', ranges-1); % readmef3 is 0 indexing, so this converts to reading 1-indexed events files. e.g. samples 1 is converted to 0 before mefreading
                 obj.changeName(); % remove hyphenated names
                 %obj.data = obj.applyConversionFactor(obj.data); % apply conversion upon loading. 2021/10/05 - commented out because it is being done in matmef
                 obj.progress = sprintf('%s\n> Loaded data in trials', obj.progress);
