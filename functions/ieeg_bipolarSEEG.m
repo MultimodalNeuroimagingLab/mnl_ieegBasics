@@ -56,9 +56,10 @@
 %
 %   HH 2023
 %
-function [dataOut, bipolarNames, badChansOut] = ieeg_bipolarSEEG(dataIn, channelNames, badChans, seg5, seg6)
+function [dataOut, bipolarNames, badChansOut] = ieeg_bipolarSEEG(dataIn, channelNames, badChans, seg5, seg6, verbose)
 
-    if nargin < 5, seg6 = {}; end % no 6-segmented leads
+    if nargin < 6, verbose = true; end
+    if nargin < 5 || isempty(seg6), seg6 = {}; end % no 6-segmented leads
     if nargin < 4 || isempty(seg5), seg5 = {}; end % no 5-segmented leads
     if nargin < 3 || isempty(badChans), badChans = []; end % no bad channels
     
@@ -86,7 +87,7 @@ function [dataOut, bipolarNames, badChansOut] = ieeg_bipolarSEEG(dataIn, channel
     
     minuend = []; subtrahend = []; % which indices to subtract from which
     badChansOut = [];
-    fprintf('Input leads:\n');
+    if verbose, fprintf('Input leads:\n'); end
     for ll = 1:length(leads)
         
         % position of contacts (numbers) along the current lead.
@@ -104,14 +105,14 @@ function [dataOut, bipolarNames, badChansOut] = ieeg_bipolarSEEG(dataIn, channel
             if mod(leadPos(end), 5), warning('%s lead is marked as segmented in 5s, but it is length-%d (non-multiple)\n', leads{ll}, leadPos(end)); end
             minuendLead(~mod(leadPos(1:end-1), 5)) = [];
             subtrahendLead(~mod(leadPos(1:end-1), 5)) = []; % Remove positions that would be 5-6, 10-11, etc.
-            fprintf('Lead %s, contacts 1 ... %d, segmented in 5s\n', leads{ll}, max(leadPos));
+            if verbose, fprintf('Lead %s, contacts 1 ... %d, segmented in 5s\n', leads{ll}, max(leadPos)); end
         elseif ~isempty(seg6) && any(strcmpi(leads{ll}, seg6))
             if mod(leadPos(end), 6), warning('%s lead is marked as segmented in 6s, but it is length-%d (non-multiple)\n', leads{ll}, leadPos(end)); end
             minuendLead(~mod(leadPos(1:end-1), 6)) = [];
             subtrahendLead(~mod(leadPos(1:end-1), 6)) = []; % 6-7, 12-13, etc 
-            fprintf('Lead %s, contacts 1 ... %d, segmented in 6s\n', leads{ll}, max(leadPos));
+            if verbose, fprintf('Lead %s, contacts 1 ... %d, segmented in 6s\n', leads{ll}, max(leadPos)); end
         else
-            fprintf('Lead %s, contacts 1 ... %d\n', leads{ll}, max(leadPos));
+            if verbose, fprintf('Lead %s, contacts 1 ... %d\n', leads{ll}, max(leadPos)); end
         end
         
         % add which indices to subtract from which
@@ -124,7 +125,7 @@ function [dataOut, bipolarNames, badChansOut] = ieeg_bipolarSEEG(dataIn, channel
     badChansOut = find(ismember(minuend, badChans) | ismember(subtrahend, badChans)); % determine which channels are bad
     bipolarNames = join([channelNames(minuend), channelNames(subtrahend)], '-');
         
-    fprintf('Constructed %d bipolar channels, %d of which are bad.\n', length(minuend), length(badChansOut));
+    if verbose, fprintf('Constructed %d bipolar channels, %d of which are bad.\n', length(minuend), length(badChansOut)); end
     
 
 end
