@@ -354,7 +354,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             else
                 disp('Loading data trials from mefd file');
                 channelsMef = readtable(obj.channelsPath, 'FileType', 'text', 'Delimiter', '\t'); % preserve names to load mef
-                [~, obj.data] = readMef3(obj.mefPath, [], channelsMef.name, 'samples', ranges); % readmef3 is 0 indexing, so this converts to reading 1-indexed events files. e.g. samples 1 is converted to 0 before mefreading
+                [~, obj.data] = readMef3(obj.mefPath, [], channelsMef.name, 'samples', ranges); % readmef3 is 0 index! So this loads up to ranges(end)-1
                 obj.changeName(); % remove hyphenated names
                 %obj.data = obj.applyConversionFactor(obj.data); % apply conversion upon loading. 2021/10/05 - commented out because it is being done in matmef
                 obj.progress = sprintf('%s\n> Loaded data in trials', obj.progress);
