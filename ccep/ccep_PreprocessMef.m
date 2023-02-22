@@ -347,14 +347,14 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 disp('Converting dataAll into trial structure');
                 obj.data = nan([height(obj.channels), length(obj.tt), height(obj.evts)]); % chs x time x trials
                 for ii = 1:height(obj.evts)
-                    obj.data(:, :, ii) = obj.dataAll(:, ranges(ii, 1) : ranges(ii, 2)-1); % equivalent to readMef3 on ranges(tr, 1)-1:ranges(tr, 2)-1.
+                    obj.data(:, :, ii) = obj.dataAll(:, ranges(ii, 1)+1 : ranges(ii, 2)); % Conversion from 0-index argument to Matlab 1-index. Equivalent to readMef3 on ranges(tr, 1):ranges(tr, 2).
                 end
                 obj.dataAll = []; % clear memory
                 obj.progress = sprintf('%s\n> Converted data to trials', obj.progress);
             else
                 disp('Loading data trials from mefd file');
                 channelsMef = readtable(obj.channelsPath, 'FileType', 'text', 'Delimiter', '\t'); % preserve names to load mef
-                [~, obj.data] = readMef3(obj.mefPath, [], channelsMef.name, 'samples', ranges-1); % readmef3 is 0 indexing, so this converts to reading 1-indexed events files. e.g. samples 1 is converted to 0 before mefreading
+                [~, obj.data] = readMef3(obj.mefPath, [], channelsMef.name, 'samples', ranges); % readmef3 is 0 indexing, so this converts to reading 1-indexed events files. e.g. samples 1 is converted to 0 before mefreading
                 obj.changeName(); % remove hyphenated names
                 %obj.data = obj.applyConversionFactor(obj.data); % apply conversion upon loading. 2021/10/05 - commented out because it is being done in matmef
                 obj.progress = sprintf('%s\n> Loaded data in trials', obj.progress);
