@@ -629,6 +629,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             objCat = copy(varargin{1}); % copy object so as to modify first obj
             assert(~isempty(objCat.data), 'Object 1 not in trial structure -- cannot be concatenated');
             
+            ii = 1;
             for ii = 2:length(varargin)
                 obj2 = varargin{ii}; % next object in line to be concatenated
                 

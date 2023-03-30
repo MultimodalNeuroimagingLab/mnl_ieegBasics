@@ -9,7 +9,7 @@
 %         = channels with significant evoked responses
 %
 %   signaldata = ccep_CAR64blocks(signaldata, tt, chTbl, stimNames)
-%   signaldata = ccep_CAR64blocks(signaldata, tt, chTbl, stimNames, pctThresh, ratioThresh, minChs)
+%   signaldata = ccep_CAR64blocks(signaldata, tt, chTbl, stimNames, pctThresh, ratioThresh, carFirst)
 %
 %       signaldata =            n x T x m array, with n channels, T time periods, m trials/epochs
 %       tt =                    1xT array of T timepoints
@@ -17,9 +17,8 @@
 %       stimNames =             (optional), m x 1 cell array, names of stim sites as channels separated by hyphen. E.g. "LG1-LG2"
 %       pctThresh =             (optional, default = 95) double [0 - 100], percentile cutoff for variance
 %       ratioThresh =           (optional, default = 1.5) double > 1, threshold cutoff for significant evoked potential
-%       minChs =                (optional, default = 8) double, mininum number of channels to create CAR with.
-%                                   If a block has fewer than minChs number of channels to include, the CAR will be set
-%                                   to an nan signal
+%       carFirst =              (optional, default = false) lobical, if true, a CAR across all channels will first be applied before estimating variances. This is so 
+%                                   that variance estimates are not primarily drowned out by noise.
 %
 %   Returns:
 %       signaldata =            n x T x m array, signals in input signaldata after subtracting CARs
@@ -27,8 +26,9 @@
 % Adapted from ccep_CAR64blocks on 2021/06/30
 % DH and HH Multimodal Neuroimaging Lab, Mayo Clinic, 2020
 %
-function signaldata = ccep_CAR(signaldata, tt, chTbl, stimNames, pctThresh, ratioThresh)
+function signaldata = ccep_CAR(signaldata, tt, chTbl, stimNames, pctThresh, ratioThresh, carFirst)
 
+    if nargin < 7, carFirst = false; end
     if nargin < 6 || isempty(ratioThresh), ratioThresh = 1.5; end
     if nargin < 5 || isempty(pctThresh), pctThresh = 95; end
     
@@ -44,9 +44,16 @@ function signaldata = ccep_CAR(signaldata, tt, chTbl, stimNames, pctThresh, rati
         else
             stimChs = find(ismember(chTbl.name, split(stimNames(kk), '-'))); % channels being stimulated
         end
-
-        var_late = var(signaldata(:, tt > 0.5 & tt < 1, kk), [], 2); % measure of noise in signal
-        var_early = var(signaldata(:, tt > 0.015 & tt < 0.1, kk), [], 2); % measure of response in signal
+        
+        if carFirst
+            sigdataTemp = signaldata(:, :, kk) - mean(signaldata(setdiff(good_channels, stimChs), :, kk), 1); % do a first-round prelim CAR on all good channels to more precisely evaluate variance
+        else
+            sigdataTemp = signaldata(:, :, kk);
+        end
+            
+        % calculate variances on temp-CAR'ed signal data
+        var_late = var(sigdataTemp(:, tt > 0.5 & tt < 1), [], 2); % measure of noise in signal
+        var_early = var(sigdataTemp(:, tt > 0.015 & tt < 0.1), [], 2); % measure of response in signal
 
         maxVar = prctile(var_late(setdiff(good_channels, stimChs)), pctThresh); % max var to accept, calculated on good, non-stim chs
         maxEarlyVar = prctile(var_early(setdiff(good_channels, stimChs)), 75); % require at least 75% of good chs to pass response thresh (assumes true resp in <25% chs)
