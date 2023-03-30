@@ -5,10 +5,6 @@ function kjm_printfig(fname,ppsize)
 % "fname" - desired filename. include path if desired
 % "size" - size of figure in cm
 
-
-
-
-
 set(gcf, 'PaperUnits', 'centimeters');
 set(gcf, 'PaperSize', [ppsize]);
 set(gcf, 'PaperPosition',[0 0 2*ppsize])

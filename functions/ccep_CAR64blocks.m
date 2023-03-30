@@ -21,30 +21,40 @@
 %       minChs =                (optional, default = 8) double, mininum number of channels to create CAR with.
 %                                   If a block has fewer than minChs number of channels to include, the CAR will be set
 %                                   to an nan signal
+%       carFirst =              (optional, default = false) lobical, if true, a CAR across all channels will first be applied before estimating variances. This is so 
+%                                   that variance estimates are not primarily drowned out by noise.
 %
 %   Returns:
 %       signaldata =            n x T x m array, signals in input signaldata after subtracting CARs
 %
 % DH and HH Multimodal Neuroimaging Lab, Mayo Clinic, 2020
 %
-function signaldata = ccep_CAR64blocks(signaldata, tt, chTbl, stimNames, pctThresh, ratioThresh, minChs)
+function signaldata = ccep_CAR64blocks(signaldata, tt, chTbl, stimNames, pctThresh, ratioThresh, minChs, carFirst)
 
-    if nargin < 7, minChs = 8; end
+    if nargin < 8, carFirst = false; end
+    if nargin < 7 || isempty(minChs), minChs = 8; end
     if nargin < 6 || isempty(ratioThresh), ratioThresh = 1.5; end
-    if nargin < 5 || isempty(pctThresh), pctThresh = 95; end
+    if nargin < 5 || isempty(pctThresh), pctThresh = 80; end
     assert(ismember(1, find(strcmp(chTbl.type, 'SEEG'))), 'SEEG channels must begin at index 1'); 
     
     nonSEEG_channels = find(~strcmp(chTbl.type, 'SEEG'));
     good_channels = find(strcmp(chTbl.status, 'good') & strcmp(chTbl.type, 'SEEG'));
-
+    
     numVarExclude = zeros([size(signaldata, 3), 1]); % track how many channels are variance-excluded per trial
     numRespExclude = zeros([size(signaldata, 3), 1]); % track how many channels are response-excluded per trial
     for kk = 1:size(signaldata, 3)
 
         stimChs = find(ismember(chTbl.name, split(stimNames(kk), '-'))); % channels being stimulated
-
-        var_late = var(signaldata(:, tt > 0.5 & tt < 1, kk), [], 2); % measure of noise in signal
-        var_early = var(signaldata(:, tt > 0.015 & tt < 0.1, kk), [], 2); % measure of response in signal
+        
+        if carFirst
+            sigdataTemp = signaldata(:, :, kk) - mean(signaldata(setdiff(good_channels, stimChs), :, kk), 1); % do a first-round prelim CAR on all good channels to more precisely evaluate variance
+        else
+            sigdataTemp = signaldata(:, :, kk);
+        end
+        
+        % calculate variances on prelim-CAR'ed data
+        var_late = var(sigdataTemp(:, tt > 0.5 & tt < 1), [], 2); % measure of noise in signal
+        var_early = var(sigdataTemp(:, tt > 0.015 & tt < 0.1), [], 2); % measure of response in signal
 
         maxVar = prctile(var_late(setdiff(good_channels, stimChs)), pctThresh); % max var to accept, calculated on good, non-stim chs
         maxEarlyVar = prctile(var_early(setdiff(good_channels, stimChs)), 75); % require at least 75% of good chs to pass response thresh (assumes true resp in <25% chs)

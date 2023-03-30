@@ -205,6 +205,10 @@
 %   Todo:
 %       - implement bipolar referencing option
 %
+%   Important discussion on whether high pass filtering and baseline subtraction should be done:
+%       van Driel, J., Olivers, C. N., & Fahrenfort, J. J. (2021). High-pass filtering artifacts in multivariate classification of neural time series data.
+%           Journal of Neuroscience Methods, 352, 109080.
+%
 classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
     
     properties % modifiable properties
@@ -337,20 +341,20 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             
             obj.tt = (0:(trange(end)-trange(1))*obj.srate-1)/obj.srate + trange(1); % samples around stim to return
             ranges = [obj.evts.sample_start + obj.tt(1)*obj.srate, ...
-                      obj.evts.sample_start + obj.tt(1)*obj.srate + length(obj.tt)]; % [start end] samples for each trial
+                      obj.evts.sample_start + obj.tt(1)*obj.srate + length(obj.tt)]; % [start end+1] samples for each trial. start is inclusive and corresponds to time 0. end is exclusive
             
             if ~isempty(obj.dataAll)
                 disp('Converting dataAll into trial structure');
                 obj.data = nan([height(obj.channels), length(obj.tt), height(obj.evts)]); % chs x time x trials
                 for ii = 1:height(obj.evts)
-                    obj.data(:, :, ii) = obj.dataAll(:, ranges(ii, 1)+1 : ranges(ii, 2)); % equivalent to readMef3 on ranges(tr, 1):ranges(tr, 2)
+                    obj.data(:, :, ii) = obj.dataAll(:, ranges(ii, 1)+1 : ranges(ii, 2)); % Conversion from 0-index argument to Matlab 1-index. Equivalent to readMef3 on ranges(tr, 1):ranges(tr, 2).
                 end
                 obj.dataAll = []; % clear memory
                 obj.progress = sprintf('%s\n> Converted data to trials', obj.progress);
             else
                 disp('Loading data trials from mefd file');
                 channelsMef = readtable(obj.channelsPath, 'FileType', 'text', 'Delimiter', '\t'); % preserve names to load mef
-                [~, obj.data] = readMef3(obj.mefPath, [], channelsMef.name, 'samples', ranges);
+                [~, obj.data] = readMef3(obj.mefPath, [], channelsMef.name, 'samples', ranges); % readmef3 is 0 index! So this loads up to ranges(end)-1
                 obj.changeName(); % remove hyphenated names
                 %obj.data = obj.applyConversionFactor(obj.data); % apply conversion upon loading. 2021/10/05 - commented out because it is being done in matmef
                 obj.progress = sprintf('%s\n> Loaded data in trials', obj.progress);
@@ -625,6 +629,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             objCat = copy(varargin{1}); % copy object so as to modify first obj
             assert(~isempty(objCat.data), 'Object 1 not in trial structure -- cannot be concatenated');
             
+            ii = 1;
             for ii = 2:length(varargin)
                 obj2 = varargin{ii}; % next object in line to be concatenated
                 
