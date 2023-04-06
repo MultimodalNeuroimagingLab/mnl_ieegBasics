@@ -34,7 +34,7 @@ function signaldata = ccep_CAR64blocks(signaldata, tt, chTbl, stimNames, pctThre
     if nargin < 8, carFirst = false; end
     if nargin < 7 || isempty(minChs), minChs = 8; end
     if nargin < 6 || isempty(ratioThresh), ratioThresh = 1.5; end
-    if nargin < 5 || isempty(pctThresh), pctThresh = 80; end
+    if nargin < 5 || isempty(pctThresh), pctThresh = 95; end
     assert(ismember(1, find(strcmp(chTbl.type, 'SEEG'))), 'SEEG channels must begin at index 1'); 
     
     nonSEEG_channels = find(~strcmp(chTbl.type, 'SEEG'));
