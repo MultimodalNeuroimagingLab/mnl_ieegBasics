@@ -1,5 +1,5 @@
 %% Returns the Morlet (Gabor) wavelet transform (Spectrogram) for a signal (or multiple trials) V.
-% Can choose between implementations: Matlab cwt() function, which sets wavelet scales based on default voices/octave
+% Can choose between implementations: Matlab cwt() function, which sets wavelet scales based on default voices/octave. This is the recommended option.
 % or kjm's custom function wavelet_pac(), which sets wavelet scales by user input frequencies
 %
 %   [S, f] = getWaveletSpectrogram(V, srate, frange);
