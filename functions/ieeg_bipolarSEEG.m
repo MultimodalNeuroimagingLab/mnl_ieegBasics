@@ -23,9 +23,9 @@
 %                               the first paragraph of the documentation above for how channel names should be formatted.
 %       badChans =          mx1 num, m <= n. Indices of bad channels to not use in bipolar derivation. bipolar pairs containing
 %                               bad channels will be listed in <badChansOut>.
-%       seg5 =              char or cell array of char. List of leads that are segmented in groups of 5. E.g., 'LA'. Bipolar pairs that cross segments
+%       seg5 =              (optional) char or cell array of char. List of leads that are segmented in groups of 5. E.g., 'LA'. Bipolar pairs that cross segments
 %                               will not be included in the output
-%       seg6 =              char or cell array of char. List of leads that are segmented in groups of 6.
+%       seg6 =              (optional) char or cell array of char. List of leads that are segmented in groups of 6.
 %
 %   Returns:
 %       dataOut =           txb double. Bipolar-referenced signal data. Rows are samples, columns are bipolar re-referenced
@@ -95,7 +95,9 @@ function [dataOut, bipolarNames, badChansOut] = ieeg_bipolarSEEG(dataIn, channel
         % Indices into input channels matching leadPos
         leadInds = find(strcmp(channelChar, leads{ll})); leadInds = leadInds(ix);
         
-        assert(length(unique(leadPos)) == length(leadPos), 'Repeated lead position in %s', leads{ll});
+        % Quick checks on position
+        assert(length(unique(leadPos)) == length(leadPos), 'Error: Repeated lead position in %s', leads{ll});
+        assert(all(diff(leadPos) == 1), 'Error: Non-consecutive electrode position in %s', leads{ll});
         
         minuendLead = leadInds(1:end-1);
         subtrahendLead = leadInds(2:end);

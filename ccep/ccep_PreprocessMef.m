@@ -14,7 +14,8 @@
 %
 % USAGE:
 %   
-%   Constructor: creates a new ccep_PreprocessMef object. Loads the channels table and (optionally) the events table. Hyphens are removed from channel names and
+%   --CONSTRUCTOR--
+%   Creates a new ccep_PreprocessMef object. Loads the channels table and (optionally) the events table. Hyphens are removed from channel names and
 %   stim pair names (mef data will be loaded using original names, and hyphens will then be removed from metadata channel names).
 %   >> mefObj = ccep_PreprocessMef(mefPath, channelsPath);
 %   >> mefObj = ccep_PreprocessMef(mefPath, channelsPath, eventsPath);
@@ -25,136 +26,41 @@
 %      Returns:
 %       mefObj =                ccep_PreprocessMef object. Contains get-fields: sub, channels, evts, metadata, srate, dataAll, data, tt, progress
 %
-%   Manually set subject name. Subject name is automatically extrapolated from channelsPath in constructor, but will be randomly assigned if that fails. sub is
+%   --USEFUL FIELDS--
+%   Manually set subject name. Subject name is automatically extrapolated from channelsPath in constructor, but will be randomly assigned if that fails. This is
 %   used in file names when saving input/output plots via plotInputs/plotOutputs
 %   >> mefObj.sub = 'sub-Name';
 %   
 %   Display preprocessing progress
 %   >> mefObj.progress;
-%      Returns: char
+%      Returns: char array of preprocessing steps performed, user-readable
+%  
+%   Other readable properties are: channels, evts, metadata, srate, tt, and dataAll (after loadMefAll) or data (after loadMefTrials)
 %
-%   Get paths used to load mef data, channels, and events
-%   >> paths = mefObj.getPaths;
-%      Returns:
-%       paths =                 struct. Contains fields mef, channels, events. Each field stores the char array path used to load that data. If 
-%                                   mefObj is a concatenated ccep_PreprocessMef object (catMef, below), then each field will contain multiple lines,
-%                                   corresponding to each concatenated ccep_PreprocessMef object, in order of concatenation.
+%   --OBJECT METHODS--
+%   Detailed documentation is described below each method header, and accessed by typing "help ccep_PreprocessMef.methodName" or "help mefObj.methodName" if mefObj exists.
+%   >> getpaths
+%   >> filterEvents
+%   >> loadMefAll
+%   >> highpass
+%   >> loadMefTrials
+%   >> car
+%   >> bipolar
+%   >> pruneChannels
+%   >> removeLN
+%   >> subtractBaseline
+%   >> plotInputs
+%   >> plotOutputs
 %
-%   Filter events by column values. Keeps only the events where events.<Name> corresponds to elements in events.<Value>. Deletes the other events
-%   Can input multiple Name, Value pairs
-%   >> mefObj.filterEvents(Name, Value, ...);
-%       Name =                  char array. Column name in mefObj.evts to indicate which column to look for matches. E.g. 'electrical_stimulation_current'
-%       Value =                 char array or cell array of chars to match in mefObj.evts.<Name>. E.g. '6.0 mA' or {'4.0 mA', '6.0 mA'}
-%
-%   Load all data from mefPath in a ch x timepoints array. Data is loaded as mefObj.dataAll. Also configures mefObj.metadata and mefObj.srate
-%   >> mefObj.loadMefAll;
-%
-%   Apply high-pass filtering to mefObj.dataAll, one channel at a time, using ieeg_highpass.m from mnl_ieegBasics.
-%   Stop band < 0.05 Hz, Pass band > 0.50 Hz. Forward-reverse filtering (filtfilt) with Butterworth filter of 30dB attenuation and 3dB ripple
-%   >> mefObj.highpass;
-%   
-%   Load/convert mef data into trial structure (ch x time points x trials), as mefObj.data
-%   If dataAll is already loaded with loadMefAll, then the trial structure is pulled directly from dataAll (fast). DataAll IS THEN DELETED.
-%   If dataAll hasn't been loaded, then data is loaded fresh from mefPath using readMef3 (slow).
-%   The end result moving forward is only mefObj.data OR mefObj.dataAll will exist, not both!
-%   Configures mefObj.tt, which is a 1xn double time point vector
-%   >> mefObj.loadMefTrials(trange);
-%   >> mefObj.loadMefTrials(trange, eventsPath);
-%       trange =                1x2 double. [start, stop] time, in seconds, around each event onset to load as trials
-%       eventsPath =            (optional) char. Only needed if not given during object construction. Path to events.tsv file. If mefObj.events already exists
-%                                   and this input is given, it will overwrite the existing mefObj.events
-%
-%   Common average rereferencing. If mefObj.dataAll exists, this call applies ieeg_car from mnl_ieegBasics, across all status=='good' channels. If mefObj.data
-%   exists, this call applies ccep_CAR or ccep_CAR64blocks from mnl_ieegBasics on each trial separately. This CANNOT be performed on a concatenated ccep_PreprocessMef
-%   object (ccep_PreprocessMef.catMef below), and SHOULD NOT be performed after mefObj.pruneChannels is called.
-%   >> mefObj.car;
-%   >> mefObj.car(by64);
-%       by64 =                  (optional) logical, default = false. If true, ccep_CAR64blocks is used instead of ccep_CAR, which applies a separate rereference
-%                                   to each contiguous block of 64 SEEG channels. Both functions threshold channels that form the reference by early variance
-%                                   late variance criteria. This input is ignored if trial structure data (mefObj.data) doesn't exist (since ieeg_car is used)
-%
-%   Line noise removal, using either a notch filter (mnl_ieegBasics ieeg_notch) or the spectrum interpolation method implemented by Mewett, Nazeran, and Reynolds.
-%   Each time point vector (1 ch x 1 trial) is filtered separately
-%   >> mefObj.removeLN('notch');
-%   >> mefObj.removeLN('notch', f);
-%   >> mefObj.removeLN('SpectrumEstimation');
-%   >> mefObj.removeLN('SpectrumEstimation', opts);
-%       'notch' =               Removes line noise with notch filter. Specify f to be either 60 (default) or 50 to remove line noise and harmonics at
-%                                   [60, 120, 180] Hz or [50, 100, 150] Hz.
-%       'SpectrumEstimation'    Removes line noise with the spectrum interpolation method (mnl_ieegBasics/external/removeLineNoise_SpectrumEstimation.m).
-%                                   opts gets passed to the opts input of that function. Default = 'LF = 60, NH = 3, HW = 3' (line noise fundamental freq =
-%                                   60 Hz, remove 3 harmonics, half-width = 3 Hz). E.g. also set window to 4096 samps: 'LF = 60, NH = 3, HW = 3, M = 4096'.
-%
-%   Prune channels to keep only channels of interest (to save memory). Modifies mefObj.channels, mefObj.dataAll (if exists), mefObj.data (if exists)
-%   >> mefObj.pruneChannels(chList);
-%       chList =                1xn cell or integer. If cell array, each element is a channel name to keep. E.g. {'RA1', 'RA2', 'RC4'}. If integer array,
-%                                   each element is a channel index to keep. E.g. 21:30 keeps the 21st - 30th channels
-%
-%   Subtracts baseline voltage from each trial in mefObj.data, calculated on a baseline time range
-%   >> mefObj.subtractBaseline(baseRange);
-%   >> mefObj.subtractBaseline(baseRange, method);
-%       baseRange =             1x2 double. [start, stop] time, in seconds, to calculate the baseline voltage on for each trial
-%       method =                (optional) char, default = 'mean'. 'mean' or 'median', method to calculate baseline voltage
-%
-%   Generate plots of incoming CCEPs to all channels or channels of interest. Plots are opened if no <dir> input given, or saved without opening if <dir> input given.
-%   If <dir> is given, a metadata file named 'metadata_<mefObj.sub>_incomingCCEP.txt' is also written to <dir>, containing info on the date/time the command was
-%   executed, the paths used to to load the data, preprocessing steps executed, and channels saved.
-%   >> mefObj.plotInputs;
-%   >> mefObj.plotInputs(chs, trange, yspace);
-%   >> mefObj.plotInputs(__, dir);
-%   >> mefObj.plotInputs(__, dir, fmt);
-%       chs =                   (optional) 1xn cell or integer. If not given, incoming CCEPs to all channels are plotted. If given, can be cell array of channel
-%                                   names, e.g. {'RA1', 'RA2', 'RC4'}; or integer array of channel indices, e.g. 21:30, to plot incoming CCEPs for.
-%       trange =                (optional) 1x2 double. [start, stop] time, in seconds, around each trial to plot the incoming CCEPs. If not given, the entire
-%                                   mefObj.tt is plotted.
-%       yspace =                (optional) positive double. The spacing between adjacent stim site lines. Essentially configures the gain of the plotted signals. Default = 500
-%       dir =                   (optional) char. Path to directory (folder) to save plots to. If not given, the plot at each channel will be opened without saving.
-%                                   If given, the plots will not be open but rather directly saved in <dir> instead.
-%       fmt =                   (optional) char. String formatting used to name the plots if saved to <dir>. Must contain 2 '%s', where the first one corresponds
-%                                   to the subject name (mefObj.sub) and the second one corresponds to the channel saved. Default = '%s_incomingCCEP_%s'.
-%                                   E.g. using default fmt, if mefObj.sub == 'sub-harbo' and the current channel plotted is 'RA1', the file saved would be at
-%                                   '<dir>/sub-harbo_incomingCCEP_RA1.png'.
-%
-%   Generate plots of outgoing CCEPs from all stimulated electrode pairs or stim pairs of interest. No more than 128 channels are plotted to a single figure;
-%   Plots are opened if no <dir> input given, or saved without
-%   opening if <dir> input given. If <dir> is given, a metadata file named 'metadata_<mefObj.sub>_outgoingCCEP.txt' is also written to <dir>, containing info on
-%   the date/time the command was executed, the paths used to to load the data, preprocessing steps executed, and stim pairs saved.
-%   >> mefObj.plotOutputs;
-%   >> mefObj.plotOutputs(sites, trange, yspace, maxCh);
-%   >> mefObj.plotOutputs(__, dir);
-%   >> mefObj.plotOutputs(__, dir, fmt);
-%       sites =                 (optional) 1xn cell or integer. If not given, outgoing CCEPs from all stim electrode pairs are plotted. If given, can be
-%                                   cell array of stim pair names, e.g. {'RA1-RA2', 'RA2-RA3', 'RC4-RC4'}; or integer array of stim pair indices, in the order
-%                                   that they are uniquely encountered going down the events file, e.g. 11:20 for the 11th - 20th unique stim pairs, to plot
-%                                   outgoing CCEPs for.
-%       trange =                (optional) 1x2 double. [start, stop] time, in seconds, around each trial to plot the outgoing CCEPs. If not given, the entire
-%                                   mefObj.tt is plotted.
-%       yspace =                (optional) positive double. The spacing between adjacent channel lines. Essentially configures the gain of the plotted signals. Default = 500
-%       maxCh =                 (optional) positive integer. The maximum number of channels to plot on one plot. Default = 128.
-%       dir =                   (optional) char. Path to directory (folder) to save plots to. If not given, the plot for each stim pair will be opened without saving.
-%                                   If given, the plots will not be open but rather directly saved in <dir> instead.
-%       fmt =                   (optional) char. String formatting used to name the plots if saved to <dir>. Must contain 2 '%s', where the first one corresponds
-%                                   to the subject name (mefObj.sub) and the second one corresponds to the stim pair saved. Default = '%s_outgoingCCEP_%s'.
-%                                   E.g. using default fmt, if mefObj.sub == 'sub-harbo' and the current stim pair plotted is 'RA1-RA2', the file saved would be at
-%                                   '<dir>/sub-harbo_outgoingCCEP_RA1-RA2.png'.
-%
-%   Make a (shallow) copy of the mefObj
+%   --COPYING AN INSTANCE--
+%   Make a (shallow) copy of the mefObj. This means that all of the object properties (tables, arrays, etc.) are copied and independent of the original.
 %   >> mefObj2 = copy(mefObj);
 %       mefObj =                ccep_PreprocessMef object
 %      Returns:
 %       mefObj2 =               Shallow copy of mefObj
 %
-%   Concatenate across trials from multiple ccep_PreprocessMef objects into a single (new) ccep_PreprocessMef object. Input ccep_PreprocessMef objects are unaffected.
-%   Each ccep_PreprocessMef object must be in trial structure (possess mefObj.data, and must have the exact same channel names, srate, and time points (mefObj.tt)
-%   to be concatenated. Additionally, the ccep_PreprocessMef objects SHOULD have the same subject name (mefObj.sub) preprocess steps executed (mefObj.progress);
-%   warnings will be given if these 2 matches are not met.
-%   (STATIC FUNCTION)
-%   >> mefObjCat = ccep_PreprocessMef.catMef(mefObj1, mefObj2, ... mefObjN);
-%       mefObj1 ... mefObjN =   ccep_PreprocessMef objects whose trials are to be concatenated, in the order that they are given as input.
-%      Returns:
-%       mefObjCat =             ccep_PreprocessMef object. mefObjCat.sub, mefObjCat.channels, and mefObjCat.progress match those from mefObj1.
-%                                   mefObjCat.evts are vertically concatenated across all mefObjs. mefObjCat.data are concatenated across dim 3 (trials) across
-%                                   all mefObjs.
+%   --CONCATENATING MULTIPLE INSTANCES--
+%   See: help ccep_PreprocessMef.catMef
 %
 % EXAMPLES:
 %
@@ -171,8 +77,8 @@
 %   >> mefObj.pruneChannels(1:20);                                  % keep only the first 20 channels
 %   >> mefObj.removeLN('SpectrumEstimation');                       % remove line noise using spectrum interpolation method
 %   >> mefObj.subtractBaseline([-0.5, -0.05]);                      % subtract baseline from each trial calculated as the mean from -0.5s to -0.05s
-%   >> mefObj.plotInputs([], [], '/path/to/output/folder');         % save plots of incoming CCEPs to all (20 pruned) channels to output folder, on [-1, 2]s time interval
-%   >> mefObj.plotOutputs([], [], 'path/to/output/folder');         % save plots of outgoing CCEPs from all stim pairs to output folder, on [-1, 2]s time interval
+%   >> mefObj.plotInputs([], [], [], '/path/to/output/folder');         % save plots of incoming CCEPs to all (20 pruned) channels to output folder, on [-1, 2]s time interval
+%   >> mefObj.plotOutputs([], [], [], [], 'path/to/output/folder');         % save plots of outgoing CCEPs from all stim pairs to output folder, on [-1, 2]s time interval
 %   >> channels = mefObj.channels;                                  % extract channels table and data as separate variables to use for later processing
 %   >> sigdata = mefObj.data;
 %
@@ -202,10 +108,12 @@
 %   >> mefObjCat = ccep_PreprocessMef.catMef(mefObjs{:});              % unpack cell array of ccep_PreprocessMef objects and concatenate to a single object
 %
 % Harvey Huang 2021
-%   Todo:
-%       - implement bipolar referencing option
+% 2023/04/17
+%   - plotOutputs now only plots SEEG and ECOG channels
+%   - implemented bipolar re-referencing method based on ieeg_bipolarSEEG.m from mnl_ieegBasics
 %
-%   Important discussion on whether high pass filtering and baseline subtraction should be done:
+%  	References discussing whether high pass filtering and baseline subtraction should be done:
+%       Delorme, A. (2023). EEG is better left alone. Scientific Reports, 13(1), 2372.
 %       van Driel, J., Olivers, C. N., & Fahrenfort, J. J. (2021). High-pass filtering artifacts in multivariate classification of neural time series data.
 %           Journal of Neuroscience Methods, 352, 109080.
 %
@@ -215,7 +123,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
         sub char % subject name
     end
     
-    properties (SetAccess = private)
+    properties (SetAccess = private) % can read but not set directly
         channels table
         evts table
         metadata struct
@@ -226,7 +134,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
         progress char
     end
     
-    properties (Access = private)
+    properties (Access = private) % cant read or set directly, used for class consistency purposes
         mefPath char
         channelsPath char
         eventsPath char
@@ -275,13 +183,24 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
         end
         
         function paths = getPaths(obj) % returns paths used to load data
+        %   Returns the file paths that were used to load mef data, channels, and events
+        %   >> paths = mefObj.getPaths;
+        %      Returns:
+        %           paths =                 struct. Contains fields mef, channels, events. Each field stores the char array path used to load that data. If 
+        %                                   mefObj is a concatenated ccep_PreprocessMef object (catMef, below), then each field will contain multiple lines,
+        %                                   corresponding to each concatenated ccep_PreprocessMef object, in order of concatenation.
             paths = struct();
             paths.mef = obj.mefPath;
             paths.channels = obj.channelsPath;
             paths.events = obj.eventsPath;
         end
         
-        function filterEvents(obj, varargin) % Keeps only events that satisfy input requirements
+        function filterEvents(obj, varargin)
+        %   Filters events by column values. Keeps only the events where events.<Name> corresponds to elements in events.<Value>. Deletes the other events
+        %   Can input multiple Name, Value pairs in a row (Name, Value, Name, Value, ...)
+        %   >> mefObj.filterEvents(Name, Value, ...);
+        %       Name =                  char array. Column name in mefObj.evts to indicate which column to look for matches. E.g. 'electrical_stimulation_current'
+        %       Value =                 char array or cell array of chars to match in mefObj.evts.<Name>. E.g. '6.0 mA' or {'4.0 mA', '6.0 mA'}
             for ii = 1:2:length(varargin)-1 % iterate thru and remove all lines that do not satisfy input requirements
                 key = varargin{ii}; val = varargin{ii+1};
                 if ischar(val), val = {val}; end
@@ -295,6 +214,8 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
         end
         
         function loadMefAll(obj) % load ch x time points matrix of entire mef data
+        %   Load all time series data from mefPath in a ch x timepoints matrix. Data is stored as mefObj.dataAll. Also configures mefObj.metadata and mefObj.srate fields
+        %   >> mefObj.loadMefAll;
             disp('Loading FULL mef data');
             channelsMef = readtable(obj.channelsPath, 'FileType', 'text', 'Delimiter', '\t'); % preserve names to load mef
             [obj.metadata, obj.dataAll] = readMef3(obj.mefPath, [], channelsMef.name);
@@ -304,14 +225,27 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             obj.progress = sprintf('%s\n> Loaded all ch x time points mef data', obj.progress);
         end
         
-        function highpass(obj) % apply highpass filter to dataAll (not to trial data because of strong edge effects)
+        function highpass(obj)
+        %   Applies high-pass filtering to each channel in mefObj.dataAll (after mefObj.loadMefAll). Uses ieeg_highpass.m from mnl_ieegBasics
+        %   Butterworth filter: Stop band (30 dB attenuation) < 0.05 Hz, Pass band (-3dB cutoff freq) > 0.50 Hz. Forward-reverse filtering using filtfilt
+        %   >> mefObj.highpass;
             assert(~isempty(obj.dataAll), 'highpass can only be applied to dataAll (channels x timepoints)');
             disp('Applying highpass filter');
             obj.dataAll = ieeg_highpass(obj.dataAll', obj.srate)';
             obj.progress = sprintf('%s\n> High-pass filter', obj.progress);
         end
         
-        function loadMefTrials(obj, trange, eventsPath) % convert dataAll to ch x time points x trials, or load directly from mefd 
+        function loadMefTrials(obj, trange, eventsPath)
+        %   Loads or converts mef data into trial structure (ch x time points x trials), as mefObj.data
+        %   If dataAll is already loaded with loadMefAll, then the trial structure is pulled directly from dataAll (fast). mefObj.dataAll IS THEN DELETED.
+        %   If dataAll hasn't been loaded, then data is loaded fresh from mefPath using readMef3 (slow).
+        %   Moving forward, only mefObj.data OR mefObj.dataAll will exist, not both!
+        %   Configures mefObj.tt, which is a 1xn double time point vector
+        %   >> mefObj.loadMefTrials(trange);
+        %   >> mefObj.loadMefTrials(trange, eventsPath);
+        %       trange =                1x2 double. [start, stop] time, in seconds, around each event onset to load as trials
+        %       eventsPath =            (optional) char. Only needed if not given during object construction. Path to events.tsv file. If mefObj.events already exists
+        %                                   and this input is given, this will overwrite the existing mefObj.events
             if nargin >= 3
                 if ~isempty(obj.evts), warning('Overwriting existing events'); end
                 obj.eventsPath = eventsPath;
@@ -361,13 +295,21 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             end
         end
         
-        function car(obj, by64) % apply common average rereference to dataAll or data, depending on which exists. Option to perform by 64-ch block
+        function car(obj, by64)
+        %   Common average rereferencing. If mefObj.dataAll exists, this call applies ieeg_car from mnl_ieegBasics, across all channels with 'status'=='good'.
+        %   If mefObj.data exists, this call applies ccep_CAR or ccep_CAR64blocks from mnl_ieegBasics on each trial separately.
+        %   This CANNOT be performed on a concatenated ccep_PreprocessMef object (ccep_PreprocessMef.catMef below), and SHOULD NOT be performed after mefObj.pruneChannels is called.
+        %   >> mefObj.car;
+        %   >> mefObj.car(by64);
+        %       by64 =                  (optional) logical, default = false. If true, ccep_CAR64blocks is used instead of ccep_CAR, which applies a separate rereference
+        %                                   to each contiguous block of 64 SEEG channels. Both functions threshold channels that form the reference by early variance and 
+        %                                   late variance criteria. This input is ignored if trial structure data (mefObj.data) doesn't exist (since ieeg_car is used)
             if nargin < 2, by64 = false; end
             assert(~obj.concatenated, 'Common average rereferencing cannot be performed after concatenating multiple ccep_PreprocessMef objects');
             if ~isempty(obj.chsPruned), warning('Applying CAR after pruning channels may be inaccurate!!'); end
             
             if ~isempty(obj.dataAll) && isempty(obj.data)
-                warning('Applying ieeg_car to dataAll because trial data hasn''t been created. by64 arg ignored');
+                warning('Applying ieeg_car to dataAll because trial data hasn''t been created. by64 input ignored');
                 chans2incl = find(strcmpi(obj.channels.type, 'SEEG') & strcmpi(obj.channels.status, 'good'));
                 obj.dataAll = ieeg_car(obj.dataAll', chans2incl)';
                 obj.progress = sprintf('%s\n> Common average rereference', obj.progress);
@@ -386,12 +328,72 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             end
         end
         
-        function bipolar(obj) % bipolar rereferencing, to be implemented
-            error('Bipolar referencing not yet implemented');
-            obj.progress = sprintf('%s\n> bipolar rereference', obj.progress);
+        function bipolar(obj, seg5, seg6)
+        % Bipolar re-referencing using ieeg_bipolarSEEG.m from mnl_ieegbasics. Operates on mefObj.dataAll or mefObj.data, whichever exists.
+        % Only rereferences the channels with type == 'SEEG'. All non-SEEG channels are concatenated below the re-referenced SEEG channels
+        % Channels table is modified to match the bipolar re-referenced channels. THIS MEANS THE NAMES, ORDER, AND NUMBER OF CHANNELS CHANGE.
+        % Bipolar channel status = 'bad' if EITHER input channel in the bipolar pair was bad
+        % >> mefObj.bipolar
+        % >> mefObj.bipolar(seg5, seg6);
+        %       seg5 =              (optional) char or cell array of char. List of leads that are segmented in groups of 5. E.g., 'LA'.
+        %                               Bipolar pairs that cross segments will not be included in the output channels
+        %       seg6 =              (optional) char or cell array of char. List of leads that are segmented in groups of 6, like seg5 above.
+        %
+            if nargin < 3 || isempty(seg6), seg6 = {}; end % no 6-segmented leads
+            if nargin < 2 || isempty(seg5), seg5 = {}; end % no 5-segmented leads
+            if ~isempty(obj.chsPruned), warning('Channels were pruned. Bipolar re-referencing will fail if there are non-consecutive positions on a lead'); end
+            
+            % apply only to SEEG channels
+            chsSEEG = obj.channels(strcmp(obj.channels.type, 'SEEG'), :);
+            badChans = find(~strcmpi(chsSEEG.status, 'good'));
+            
+            % bipolar rereference across all data
+            if ~isempty(obj.dataAll) && isempty(obj.data)
+                fprintf('Applying Bipolar re-referencing to dataAll\n');
+                
+                % apply only to SEEG data
+                dataIn = obj.dataAll(strcmp(obj.channels.type, 'SEEG'), :);
+                [dataOut, bipolarChans, badChans] = ieeg_bipolarSEEG(dataIn', chsSEEG.name, badChans, seg5, seg6);
+                
+                % vertically concatenate bipolar-rereferenced SEEG data with the non-SEEG data
+                obj.dataAll = [dataOut'; obj.dataAll(~strcmp(obj.channels.type, 'SEEG'), :)];
+            
+            % bipolar rereference for each trial separately
+            elseif isempty(obj.dataAll) && ~isempty(obj.data)
+                fprintf('Applying Bipolar re-referencing to data\n');
+                
+                dataBip = [];
+                for ii = 1:height(obj.evts) % iterate across trials
+                    
+                    % Apply only to SEEG data
+                    dataIn = obj.data(strcmp(obj.channels.type, 'SEEG'), :, ii);
+                    if ii == 1, verbose = true; else, verbose = false; end
+                    [dataOut, bipolarChans, badChans] = ieeg_bipolarSEEG(dataIn', chsSEEG.name, badChans, seg5, seg6, verbose);
+                        
+                    dataBip = cat(3, dataBip, dataOut'); % concatenate trials
+                end
+                
+                % concatenate with non-SEEG data (in 1st dimension)
+                obj.data = cat(1, dataBip, obj.data(~strcmp(obj.channels.type, 'SEEG'), :, :));
+                
+            end
+            
+            % modify the channels table to accommodate bipolar-rereferenced data
+            eles = split(bipolarChans, '-', 2); % get the minuend of each bipolar pair, to find matching rows in channels
+            minuends = eles(:, 1);
+            chsSEEG = chsSEEG(ismember(chsSEEG.name, minuends), :); % get the subset of chsSEEG that match th eminuends
+            chsSEEG.name = bipolarChans; chsSEEG.status(badChans) = {'bad'}; % cases where the bipolar ch is bad because subtrahend was bad
+            obj.channels = [chsSEEG; obj.channels(~strcmp(obj.channels.type, 'SEEG'), :)]; % concatenate with non-SEEG channels
+            
+            obj.progress = sprintf('%s\n> Bipolar rereference', obj.progress);
+            
         end
         
         function pruneChannels(obj, chList) % keep only relevant channels
+        %   Prune channels to keep only channels of interest (to save memory). Modifies mefObj.channels, mefObj.dataAll (if exists), mefObj.data (if exists)
+        %   >> mefObj.pruneChannels(chList);
+        %       chList =                cell array of char, or integer. If cell array, each element is a channel name to keep. E.g. {'RA1', 'RA2', 'RC4'}.
+        %                                   If integer array, each element is a channel index to keep. E.g. 21:30 keeps the 21st - 30th channels
             if isnumeric(chList), chList = obj.channels.name(chList); end % convert indices to names
             if ischar(chList), chList = {chList}; end % if single ch given
             
@@ -407,7 +409,18 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             obj.progress = sprintf('%s\n> Pruned channels', obj.progress);
         end
         
-        function removeLN(obj, method, opts) % remove line noise on dataAll or data (ch-by-ch), depending on whcih exists
+        function removeLN(obj, method, opts)
+        %   Line noise removal, using either a notch filter (mnl_ieegBasics ieeg_notch.m) or the spectrum interpolation method implemented by Mewett, Nazeran, and Reynolds.
+        %   >> mefObj.removeLN('notch');
+        %   >> mefObj.removeLN('notch', f);
+        %   >> mefObj.removeLN('SpectrumEstimation');
+        %   >> mefObj.removeLN('SpectrumEstimation', opts);
+        %       'notch' =               (Faster) Removes line noise with notch filter. Specify f to be either 60 (default) or 50 to remove line noise and harmonics at
+        %                                   [60, 120, 180] Hz or [50, 100, 150] Hz.
+        %       'SpectrumEstimation'    (Slower) Removes line noise with the spectrum interpolation method (mnl_ieegBasics/external/removeLineNoise_SpectrumEstimation.m).
+        %                                   This is advantageous when there are high-amplitude transient artifacts (e.g. from stimulation) in the data.
+        %                                   opts gets passed to the opts input of that function. Default = 'LF = 60, NH = 3, HW = 3' (line noise fundamental freq =
+        %                                   60 Hz, remove 3 harmonics, half-width = 3 Hz). E.g. also set window to 4096 samps: 'LF = 60, NH = 3, HW = 3, M = 4096'.
             switch lower(method)
                 case 'notch' % probably code a more sophisticated notch filter later
                     if nargin < 3, opts = 60; end % base notch frequency
@@ -461,7 +474,12 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             
         end
         
-        function subtractBaseline(obj, baseRange, method) % subtract baseline period with mean or median
+        function subtractBaseline(obj, baseRange, method)
+        %   Subtracts mean or median baseline voltage from each trial in mefObj.data, calculated on an input time range
+        %   >> mefObj.subtractBaseline(baseRange);
+        %   >> mefObj.subtractBaseline(baseRange, method);
+        %       baseRange =             1x2 double. [start, stop] time, in seconds, to calculate the baseline voltage on for each trial
+        %       method =                (optional) char, default = 'mean'. 'mean' or 'median', method to calculate baseline voltage
             assert(~isempty(obj.data), 'Baseline can only be subtracted from trial data');
             assert(baseRange(1)>=obj.tt(1) && baseRange(end)<=obj.tt(end), 'baseline time range not within tt time range');
             if nargin < 3, method = 'mean'; end
@@ -476,7 +494,26 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             obj.progress = sprintf('%s\n> Subtracted %s baseline on [%.3f, %.3f] s', obj.progress, method, baseRange(1), baseRange(end));
         end
         
-        function plotInputs(obj, chs, trange, yspace, dir, fmt) % generate/save prelim incoming CCEP plots
+        function plotInputs(obj, chs, trange, yspace, dir, fmt)
+        %   Generate plots of incoming CCEPs to all channels or channels of interest. Can only be run after mefObj.loadMefTrials creates the trial structure data
+        %   Plots are opened if no <dir> input given, or saved without opening if <dir> input is given.
+        %   If <dir> is given, a metadata file named 'metadata_<mefObj.sub>_incomingCCEP.txt' is also written to <dir>, containing info on the date/time the command was
+        %   executed, the paths used to to load the data, preprocessing steps executed, and channels saved.
+        %   >> mefObj.plotInputs;
+        %   >> mefObj.plotInputs(chs, trange, yspace);
+        %   >> mefObj.plotInputs(__, dir);
+        %   >> mefObj.plotInputs(__, dir, fmt);
+        %       chs =                   (optional) cell array or integer array. If not given, incoming CCEPs to all channels are plotted. If given, can be cell array of channel
+        %                                   names, e.g. {'RA1', 'RA2', 'RC4'}; or integer array of channel indices, e.g. 21:30, to plot incoming CCEPs for.
+        %       trange =                (optional) 1x2 double. [start, stop] time, in seconds, around each trial to plot the incoming CCEPs. If not given, the entire
+        %                                   mefObj.tt time interval is plotted.
+        %       yspace =                (optional) positive double. The spacing between adjacent stim site lines. Smaller value corresponds to more gain in the plotted signals. Default = 500
+        %       dir =                   (optional) char. Path to directory (folder) to save plots to. If not given, the plot at each channel will be opened without saving.
+        %                                   If given, the plots will not be open but rather directly saved in <dir> instead.
+        %       fmt =                   (optional) char. String formatting used to name the plots if saved to <dir>. Must contain 2 '%s', where the first one corresponds
+        %                                   to the subject name (mefObj.sub) and the second one corresponds to the channel saved. Default = '%s_incomingCCEP_%s'.
+        %                                   E.g. using default fmt, if mefObj.sub == 'sub-harbo' and the current channel plotted is 'RA1', the file saved would be at
+        %                                   '<dir>/sub-harbo_incomingCCEP_RA1.png'.
             assert(~isempty(obj.data), 'Plots can only be generated from trial data');
             
             if nargin < 6, fmt = '%s_incomingCCEP_%s'; end % string formatting to save images
@@ -534,7 +571,29 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             if ~isempty(dir), obj.writeMeta(fullfile(dir, sprintf('metadata_%s.txt', sprintf(fmt, obj.sub, 'ch'))), chs); end % metadata about parameters
         end
         
-        function plotOutputs(obj, sites, trange, yspace, maxCh, dir, fmt) % generate/save prelim outgoing CCEP plots
+        function plotOutputs(obj, sites, trange, yspace, maxCh, dir, fmt)
+        %   Generate plots of outgoing CCEPs from all stimulated electrode pairs or stim pairs of interest.
+        %   Plots are opened if no <dir> input given, or saved without opening if <dir> input given.
+        %   If <dir> is given, a metadata file named 'metadata_<mefObj.sub>_outgoingCCEP.txt' is also written to <dir>, containing info on
+        %   the date/time the command was executed, the paths used to to load the data, preprocessing steps executed, and stim pairs saved.
+        %   >> mefObj.plotOutputs;
+        %   >> mefObj.plotOutputs(sites, trange, yspace, maxCh);
+        %   >> mefObj.plotOutputs(__, dir);
+        %   >> mefObj.plotOutputs(__, dir, fmt);
+        %       sites =                 (optional) cell array or integer array. If not given, outgoing CCEPs from all stim electrode pairs are plotted. If given, can be
+        %                                   cell array of stim pair names, e.g. {'RA1-RA2', 'RA2-RA3', 'RC4-RC4'}; or integer array of stim pair indices, in the order
+        %                                   that they are uniquely encountered going down the events file, e.g. 11:20 for the 11th - 20th unique stim pairs, to plot
+        %                                   outgoing CCEPs for.
+        %       trange =                (optional) 1x2 double. [start, stop] time, in seconds, around each trial to plot the outgoing CCEPs. If not given, the entire
+        %                                   mefObj.tt time interval is plotted.
+        %       yspace =                (optional) positive double. The spacing between adjacent channel lines. Smaller value corresponds to more gain in the plotted signals. Default = 500
+        %       maxCh =                 (optional) positive integer. The maximum number of channels to plot on one plot. Channels will be divided ~evenly on multiple plots. Default = 128.
+        %       dir =                   (optional) char. Path to directory (folder) to save plots to. If not given, the plot for each stim pair will be opened without saving.
+        %                                   If given, the plots will not be open but rather directly saved in <dir> instead.
+        %       fmt =                   (optional) char. String formatting used to name the plots if saved to <dir>. Must contain 2 '%s', where the first one corresponds
+        %                                   to the subject name (mefObj.sub) and the second one corresponds to the stim pair saved. Default = '%s_outgoingCCEP_%s'.
+        %                                   E.g. using default fmt, if mefObj.sub == 'sub-harbo' and the current stim pair plotted is 'RA1-RA2', the file saved would be at
+        %                                   '<dir>/sub-harbo_outgoingCCEP_RA1-RA2.png'.
             assert(~isempty(obj.data), 'Plots can only be generated from trial data');
             
             if nargin < 7, fmt = '%s_outgoingCCEP_%s'; end % string formatting to save images
@@ -557,9 +616,19 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             
             chs = obj.channels.name; % all channels
             status = obj.channels.status; % status of all channels
+            dataChs = obj.data; % pull out to remove non-ephys channels
+            
+            % Only plot the SEEG and ECOG channels
+            try
+                chs(~ismember(upper(obj.channels.type), {'SEEG', 'ECOG'})) = [];
+                status(~ismember(upper(obj.channels.type), {'SEEG', 'ECOG'})) = [];
+                dataChs(~ismember(upper(obj.channels.type), {'SEEG', 'ECOG'}), :, :) = [];
+            catch
+                warning('Could not isolate only SEEG and ECoG channels to plot');
+            end
             
             for ii = 1:length(sites)
-                dataStim = obj.data(:, :, strcmpi(obj.evts.electrical_stimulation_site, sites{ii})); % transpose to match plotInput structure
+                dataStim = dataChs(:, :, strcmpi(obj.evts.electrical_stimulation_site, sites{ii})); % transpose to match plotInput structure
                 assert(~isempty(dataStim), 'No output data from stim site %s', sites{ii});
                 dataStim = mean(dataStim, 3)'; % mean across stim trials
                 
@@ -624,12 +693,28 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
     
     methods(Static)
         
-        function objCat = catMef(varargin) % create a new PreprocesMef object by concatenating aross ccep_PreprocessMef objects
+        function objCat = catMef(varargin)
+        %   STATIC function.
+        %   Concatenates across trials from multiple ccep_PreprocessMef objects into a single (new) ccep_PreprocessMef object. Input ccep_PreprocessMef objects are unaffected.
+        %   Each ccep_PreprocessMef object must be in trial structure (possess mefObj.data, and must have the exact same channel names, srate, and time points (mefObj.tt)
+        %   to be concatenated. Additionally, the ccep_PreprocessMef objects SHOULD have the same subject name (mefObj.sub) preprocess steps executed (mefObj.progress);
+        %   warnings will be given if these 2 matches are not met.
+        %
+        %   >> mefObjCat = ccep_PreprocessMef.catMef(mefObj1, mefObj2, ... mefObjN);
+        %       mefObj1 ... mefObjN =   ccep_PreprocessMef objects whose trials are to be concatenated, in the order that they are given as input.
+        %      Returns:
+        %       mefObjCat =             ccep_PreprocessMef object. The fields: sub, metadata, progress are copied from mefObj1.
+        %                                   mefObjCat.evts are vertically concatenated across all mefObjs. mefObjCat.data are concatenated across dim 3 (trials) across all mefObjs.
+        %                                   mefObjCat.mefPath, channelsPath, eventsPath are concatenated across all mefObjs
             assert(isa(varargin{1}, 'ccep_PreprocessMef'), 'Inputs must be ccep_PreprocessMef objects');
             objCat = copy(varargin{1}); % copy object so as to modify first obj
             assert(~isempty(objCat.data), 'Object 1 not in trial structure -- cannot be concatenated');
             
-            ii = 1;
+            if length(varargin) == 1
+                fprintf('Only one mefObj input given. Nothing is concatenated.\n');
+                return
+            end
+            
             for ii = 2:length(varargin)
                 obj2 = varargin{ii}; % next object in line to be concatenated
                 
