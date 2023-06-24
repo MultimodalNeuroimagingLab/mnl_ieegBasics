@@ -1,4 +1,4 @@
-function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
+function [Vout, CA, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
 %
 %   This function performs Common Average Re-referencing by Least Anticorrelation (CARLA) for CCEP data.
 %   1. Channels are ranked in order of increasing variance or covariance across trials. 
@@ -6,12 +6,14 @@ function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
 %       calculated, for each bootstrapped mean signal. zminmean denotes the mean correlation belonging, at each bootstrap, to the most anticorrelated channel.
 %   3. The optimum common average size corresponds to the least anticorrelation (when zminmean takes on its least negative value)
 %
-%   Vout = CARLA(tt, V); [NOT RECOMMENDED] % minimum usage
-%   Vout = CARLA(tt, V, srate);
-%   [Vout, CAR, stats] = CARLA(tt, V, srate, badChs, opts); % full usage
+%   Vout = ccep_CARLA(tt, V); % minimum inputs, NOT RECOMMENDED
+%   Vout = ccep_CARLA(tt, V, srate); % recommended minimum inputs
+%   [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, opts); % full usage
 %       tt =        1 x t num. Time points matching V, in seconds
 %       V =         n x t x k num, or n x t num. Signal data to be re-referenced, with n channels by t time points by k trials (2 dimensional if k = 1).
-%       srate =     num. Sampling frequency of data. If not given, this will be estimated from the time points (not recommended because of possible imprecision).
+%                       Any single time points that are nan are propagated to entire trial(s) containing those nan time points
+%       srate =     num. Sampling frequency of data, used for notch filter if opts.notchfirst==true.
+%                       If not given and opts.notchfirst==true, this will be estimated from the tt input (not recommended because of possible imprecision).
 %       badChs =    (optional) 1 x m num, or m x 2 cell array, m < n. If array, this is a simple list of all bad channels (e.g., [36, 78, 100, 212:230]).
 %                       If given as m x 2 cell array, the first column lists all channels that are either bad (for all trials) or bad only at certain trials. The
 %                       second column contains arrays listing which trials are bad for that channel. These channels WILL be considered in finding the best CAR.
@@ -25,12 +27,12 @@ function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
 %           notchFirst =    bool. Whether notch filters are applied at 60, 120, 180 Hz to reduce line noise on the data before ranking/optimizing by CARLA.
 %                               This only affects determining which channels to include, as the rereferenced output is calculated from the unfiltered input. Default = true.
 %           nBoot =         integer. Number of bootstrapped mean signal samples to generate when calculating zminmean. Ignored if k = 1. Default = 100.
-%           winResp =       2 x n num. [start, stop] of responsive time period to calculate variance and correlations on, in seconds matching tt. Default = [0.01, 0.3].
+%           winResp =       1 x 2 num. [start, stop] of responsive time period to calculate variance and correlations on, in seconds matching tt. Default = [0.01, 0.3].
 %           alpha =         num. Alpha threshold for significance when determining whether zminmean significantly decreases from local max to next trough. Default = 0.05.
 %
 %   RETURNS:
 %       Vout =      n x t x k num, or n x t num. Re-referenced signal data.
-%       CAR =       t x k num, or 1 x t num. The CAR at each trial
+%       CA =        t x k num, or 1 x t num. The common average calculated for each trial
 %       stats =     struct, containing fields:
 %                       chsUsed =       p x 1 num, p <= n. The sorted n channel numbers used in the optimum CAR (indexing the original input)
 %                       vars =          n x 1 num. Cross-trial covariance or geomean variance of each good channel (depending on optsIn.vartype)
@@ -50,17 +52,15 @@ function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
         if size(V, 1) == length(tt), V = V'; end
     end
     
+    % propagate single nan timepoints to entire trial(s) affected
+    nanmask = repmat(any(isnan(V), 2), 1, length(tt), 1);
+    V(nanmask) = nan;
+    
     nTrs = size(V, 3); % number of trials
     assert(size(V, 2) == length(tt), 'Error: second dimension does not match tt. Data should be channels x timepoints x trials');
     
     if nargin < 4, badChs = []; end
     assert(isnumeric(badChs), 'Error: badChs must be given as a numeric list');
-    
-    % Estimate sampling frequency from time points if necessary (not recommended)
-    if nargin < 3 || isempty(srate)
-        srate = (length(tt) - 1) / (max(tt) - min(tt));
-        warning('sampling frequency was ESTIMATED to be %0.02f', srate);
-    end
     
     % default opts
     opts.vartype = 'cov';
@@ -85,7 +85,13 @@ function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
             
             opts.(fieldCurr) = optsIn.(fieldCurr);
         end
-    end 
+    end
+    
+    % Estimate sampling frequency from time points if necessary (not recommended)
+    if nargin < 3 || isempty(srate) && opts.notchfirst
+        srate = (length(tt) - 1) / (max(tt) - min(tt));
+        warning('sampling frequency for notch filter was ESTIMATED to be %0.02f', srate);
+    end
     
     % Remove channels bad for all trials, keep track of channels with selectively-bad trials
     VgoodChs = V;
@@ -135,7 +141,9 @@ function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
                                     'HalfPowerFrequency2', ff+2, ...
                                     'SampleRate', srate);
             for ii = 1:nTrs % filter per trial
-                Vclean(:, :, ii) = filtfilt(dNotch, Vclean(:, :, ii)')';
+                VcleanTr = Vclean(:, :, ii); % all channels at current trial
+                VcleanTr(~any(isnan(VcleanTr), 2), :) = filtfilt(dNotch, VcleanTr(~any(isnan(VcleanTr), 2), :)')'; % filter channels with non-nan time points
+                Vclean(:, :, ii) = VcleanTr;
             end
         end
     end
@@ -282,10 +290,10 @@ function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
     stats.chsUsed = sort(goodChs(stats.order(1:nOptimum)));
     
     % calculate CAR from VgoodChs, which has nans in the bad trials. No filters applied to this.
-    CAR = mean(VgoodChs(stats.order(1:nOptimum), :, :), 'omitnan');
+    CA = mean(VgoodChs(stats.order(1:nOptimum), :, :), 'omitnan');
         
-    Vout = V - CAR;
+    Vout = V - CA;
     
-    CAR = squeeze(CAR); % squeeze out the first dimension to make t x k, if 3 dimensional
+    CA = squeeze(CA); % squeeze out the first dimension to make t x k, if 3 dimensional
     
 end
