@@ -134,7 +134,9 @@ function [Vout, CA, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
     % Notch filter signals to remove line noise, if desired. This is not used for final output.
     Vclean = VgoodChs;
     if opts.notchfirst
+        fprintf('Applying notch filters: ');
         for ff = 60:60:180
+            fprintf('%d Hz, ', ff);
             dNotch = designfilt('bandstopiir', 'FilterOrder', 4, ... % matches filter in ieeg_notch
                                     'DesignMethod', 'butter', ...
                                     'HalfPowerFrequency1', ff-2, ... 
@@ -146,6 +148,7 @@ function [Vout, CA, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
                 Vclean(:, :, ii) = VcleanTr;
             end
         end
+        fprintf('\n');
     end
     
     % extract data on response interval to perform analysis on
