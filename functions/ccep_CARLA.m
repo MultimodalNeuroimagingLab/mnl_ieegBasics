@@ -20,12 +20,12 @@ function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
 %                              [11], [];          % So the good trials of channel 155 will still be considered in determining the common average
 %                              [155], [4, 7, 8]}
 %       optsIn =      (optional) struct to adjust parameters, fields described below:
-%           vartype =       char, 'var' or 'cov'. What metric to use when ranking channels. 'var' ranks channels based on (geometric) average variance across trials.
+%           varType =       char, 'var' or 'cov'. What metric to use when ranking channels. 'var' ranks channels based on (geometric) average variance across trials.
 %                               'cov' ranks channels based on average cross-trial covariance. 'var' is used when k = 1 regardless of input. Default = 'cov'.
-%           notchfirst =    bool. Whether notch filters are applied at 60, 120, 180 Hz to reduce line noise on the data before ranking/optimizing by CARLA.
+%           notchFirst =    bool. Whether notch filters are applied at 60, 120, 180 Hz to reduce line noise on the data before ranking/optimizing by CARLA.
 %                               This only affects determining which channels to include, as the rereferenced output is calculated from the unfiltered input. Default = true.
-%           nboot =         integer. Number of bootstrapped mean signal samples to generate when calculating zminmean. Ignored if k = 1. Default = 100.
-%           winresp =       2 x n num. [start, stop] of responsive time period to calculate variance and correlations on, in seconds matching tt. Default = [0.01, 0.3].
+%           nBoot =         integer. Number of bootstrapped mean signal samples to generate when calculating zminmean. Ignored if k = 1. Default = 100.
+%           winResp =       2 x n num. [start, stop] of responsive time period to calculate variance and correlations on, in seconds matching tt. Default = [0.01, 0.3].
 %           alpha =         num. Alpha threshold for significance when determining whether zminmean significantly decreases from local max to next trough. Default = 0.05.
 %
 %   RETURNS:
@@ -54,6 +54,7 @@ function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
     assert(size(V, 2) == length(tt), 'Error: second dimension does not match tt. Data should be channels x timepoints x trials');
     
     if nargin < 4, badChs = []; end
+    assert(isnumeric(badChs), 'Error: badChs must be given as a numeric list');
     
     % Estimate sampling frequency from time points if necessary (not recommended)
     if nargin < 3 || isempty(srate)
@@ -73,7 +74,7 @@ function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
         inFields = fieldnames(optsIn);
         for ii = 1:length(inFields) % make case insensitive
             fieldCurr = lower(inFields{ii});
-            assert(any(strcmp(fieldCurr, {'winresp', 'vartype', 'notchFirst', 'nboot'})), 'Error: "%s" is not a valid opts field', fieldCurr);
+            assert(any(strcmp(fieldCurr, {'winresp', 'vartype', 'notchfirst', 'nboot', 'alpha'})), 'Error: "%s" is not a valid opts field', fieldCurr);
             
             if strcmp(fieldCurr, 'vartype'), assert(any(strcmp(optsIn.(fieldCurr), {'var', 'cov'})), 'Error: vartype has to be "var" or "cov"'); end
             if strcmp(fieldCurr, 'notchfirst'), assert(islogical(optsIn.(fieldCurr)), 'Error: notchfirst must be logical (true or false)'); end
@@ -153,6 +154,7 @@ function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
     elseif strcmp(opts.vartype, 'var') % multiple trials but choose to use variance. Geomean across trials to be more prone to outliers
         stats.vars = geomean(var(Vseg, 0, 2), 3, 'omitnan'); % omitnan ignores bad trials for channels in calculation
     elseif strcmp(opts.vartype, 'cov') % multiple trials, choose to use mean covariance
+        if nTrs < 6, warning('Mean covariance may be unreliable for few trials due to spurious anticorrelations between trials. Recommend using ''var'' instead'); end
         stats.vars = nan(nChs, 1);
         for ii = 1:nChs
             covCurr = cov(squeeze(Vseg(ii, :, :)));
@@ -186,7 +188,7 @@ function [Vout, CAR, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
             
             % choose "most responsive" channel with greatest anticorrelation, on average
             [~, kkMost] = min(mean(z, 2, 'omitnan'));
-            stats.zMin(stats.order(1:ii), ii) = r(kkMost, :);
+            stats.zMin(stats.order(1:ii), ii) = z(kkMost, :);
             
             continue;
             
