@@ -706,6 +706,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
         %       mefObjCat =             ccep_PreprocessMef object. The fields: sub, metadata, progress are copied from mefObj1.
         %                                   mefObjCat.evts are vertically concatenated across all mefObjs. mefObjCat.data are concatenated across dim 3 (trials) across all mefObjs.
         %                                   mefObjCat.mefPath, channelsPath, eventsPath are concatenated across all mefObjs
+        %                                   mefObjCat.channels.status is bad if 'bad' for any single run
             assert(isa(varargin{1}, 'ccep_PreprocessMef'), 'Inputs must be ccep_PreprocessMef objects');
             objCat = copy(varargin{1}); % copy object so as to modify first obj
             assert(~isempty(objCat.data), 'Object 1 not in trial structure -- cannot be concatenated');
@@ -732,6 +733,10 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 objCat.mefPath = sprintf('%s\n%s', objCat.mefPath, obj2.mefPath);
                 objCat.channelsPath = sprintf('%s\n%s', objCat.channelsPath, obj2.channelsPath);
                 objCat.eventsPath = sprintf('%s\n%s', objCat.eventsPath, obj2.eventsPath);
+                
+                % Set channel status to 'bad' if they are bad in any single run
+                objCat.channels.status(strcmpi(obj2.channels, 'bad')) = {'bad'};
+                
             end
             fprintf('Merged across %d ccep_PreprocessMef objects\n', ii);
             objCat.concatenated = true;

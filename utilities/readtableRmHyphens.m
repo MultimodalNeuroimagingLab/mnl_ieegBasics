@@ -37,7 +37,7 @@ function [tbl, origCol] = readtableRmHyphens(path, colName, numHyphens, varargin
     col = origCol;
     for cc = 1:length(col)
         
-        if any(strcmp(col(cc), {'n/a', 'NaN'})), continue; end % ignore rows with NaN or n/a
+        if any(strcmp(col(cc), {'n/a', 'NaN'})) || isempty(col{cc}), continue; end % ignore rows with NaN or n/a
         
         eles = split(col(cc), '-');
         
