@@ -4,6 +4,7 @@
 %       tt =        1xt time vector
 %       data =      txn, rows are samples and columns are trials
 %       yspace =    1x1, space between each trial
+%       labels
 %       cm =        mx3, color map (optional)
 %       Optional Name, Value pairs to pass to built-in plot function
 %
@@ -18,6 +19,10 @@ function ys = plotTrials(tt, data, yspace, labels, cm, varargin)
     if ~exist('cm', 'var') || isempty(cm)
         cm = get(0, 'DefaultAxesColorOrder'); 
     end
+    if isempty(tt)
+        tt = 1:size(data, 1);
+    end
+    
     assert(length(labels) == size(data, 2), 'number of labels needs to match number of columns in data');
     
     numTrials = size(data, 2);
@@ -27,8 +32,8 @@ function ys = plotTrials(tt, data, yspace, labels, cm, varargin)
     ys = yspace*(0:-1:-(numTrials - 1));
     hold on
     for ii = 1:numTrials
-        plot(tt, data(:, ii) + ys(ii), 'Color', cm(ii, :), varargin{:});
         yline(ys(ii), 'Color', 0.5*[1 1 1]);
+        plot(tt, data(:, ii) + ys(ii), 'Color', cm(ii, :), varargin{:});
     end
     hold off
     
