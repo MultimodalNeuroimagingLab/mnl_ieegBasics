@@ -73,7 +73,10 @@ function [Vout, CA, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
     if exist('optsIn', 'var') && isa(optsIn, 'struct')
         inFields = fieldnames(optsIn);
         for ii = 1:length(inFields) % make case insensitive
+
+            optsIn.(lower(inFields{ii})) = optsIn.(inFields{ii});
             fieldCurr = lower(inFields{ii});
+            
             assert(any(strcmp(fieldCurr, {'winresp', 'vartype', 'notchfirst', 'nboot', 'alpha'})), 'Error: "%s" is not a valid opts field', fieldCurr);
             
             if strcmp(fieldCurr, 'vartype'), assert(any(strcmp(optsIn.(fieldCurr), {'var', 'cov'})), 'Error: vartype has to be "var" or "cov"'); end
