@@ -4,9 +4,9 @@
 %   E.g. use this to load a channels.tsv file so that channel names like 'RC-ALT2' become 'RCALT2'.
 %   E.g. alternatively, use this to load an events.tsv file so that stim pair names like 'RC-ALT2-RC-ALT3' become 'RCALT2-RCALT3'.
 %
-%   tbl = readtableRmHyphens(path);
-%   tbl = readtableRmHyphens(path, colName, numHyphens);
-%   tbl = readtableRmHyphens(path, colName, numHyphens, varargin);
+%   tbl = ieeg_readtableRmHyphens(path);
+%   tbl = ieeg_readtableRmHyphens(path, colName, numHyphens);
+%   tbl = ieeg_readtableRmHyphens(path, colName, numHyphens, varargin);
 %       path =          char, full or relative path to table file containing file name and extension
 %       colName =       char (optional), name of the column to remove hyphens from. Default = 'name' (works for channels.tsv
 %                           and electrodes.tsv files).
@@ -21,7 +21,7 @@
 %
 % HH 2021
 %
-function [tbl, origCol] = readtableRmHyphens(path, colName, numHyphens, varargin)
+function [tbl, origCol] = ieeg_readtableRmHyphens(path, colName, numHyphens, varargin)
     
     if nargin < 4
         tbl = readtable(path, 'FileType', 'text', 'Delimiter', '\t', 'TreatAsEmpty', 'n/a'); % default options for reading tsv files

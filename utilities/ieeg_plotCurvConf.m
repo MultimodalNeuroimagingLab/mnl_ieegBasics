@@ -1,9 +1,9 @@
 %% Plots 95% confidence interval shadings for the input curve, y
 %
 %   USAGE:
-%       plotCurvConf([], y);
-%       plotCurvConf(x, y);
-%       h = plotCurvConf(x, y, color, facealph)
+%       ieeg_plotCurvConf([], y);
+%       ieeg_plotCurvConf(x, y);
+%       h = ieeg_plotCurvConf(x, y, color, facealph)
 %           x =             1xn numeric, x values corresponding to each column in y. If empty (enter []), x is set to
 %                               1 ... <number of col in y> by default
 %           y =             mxn numeric, data to calculate 95% confidence interval on. Rows correspond to individual
@@ -16,7 +16,7 @@
 %
 % HH 2021
 %
-function h = plotCurvConf(x, y, color, facealph, nboot)
+function h = ieeg_plotCurvConf(x, y, color, facealph, nboot)
 
     if nargin < 5, nboot = []; end
     if nargin < 4 || isempty(facealph), facealph = 0.5; end

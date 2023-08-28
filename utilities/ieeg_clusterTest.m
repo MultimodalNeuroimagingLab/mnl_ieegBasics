@@ -16,8 +16,8 @@
 %           Journal of Neuroscience, 43(8), 1405-1413.
 %
 %   USAGE:
-%       clusters = clusterTest(x1, x2);                                         % minimal inputs/outputs
-%       [clusters, pSig] = clusterTest(x1, x2, alphaThresh, alphaPer, nperm);   % full inputs/outputs
+%       clusters = ieeg_clusterTest(x1, x2);                                         % minimal inputs/outputs
+%       [clusters, pSig, tSumsSig] = ieeg_clusterTest(x1, x2, alphaThresh, alphaFA, nperm);   % full inputs/outputs
 %           x1 =            t x n num. n Trials corresponding to first experimental condition, with t time points to be compared
 %           x2 =            t x m num. m Trials corresponding to second experimental condition.
 %           alphaThresh =   (optional) num, 0 < alphaThresh < 1. Alpha of the 2-tailed t-tests to detect samples with significant (uncorrected) difference in means between x1 and x2.
@@ -31,6 +31,7 @@
 %       clusters =          b x 2 num. Each row is the [start, stop] indices in x1, x2 of a significant cluster. There are b significant clusters detected. No significant
 %                               clusters if empty.
 %       pSig =              b x 1 num. The permutation p-value for each significant cluster in clusters. Every element of pSig <= alphaFA.
+%       tSumsSig =          b x 1 num. The cluster t-static sum for each significant cluster in clusters.
 %           
 %   To-consider:
 %       Maris & Oostenveld, 2007 discusses optional limits on the minimum cluster size. This is not currently implemented and the user can filter for minimum
@@ -41,7 +42,7 @@
 %
 % HH 08/2023
 %
-function [clusters, pSig] = clusterTest(x1, x2, alphaThresh, alphaFA, nperm)
+function [clusters, pSig, tSumsSig] = ieeg_clusterTest(x1, x2, alphaThresh, alphaFA, nperm)
     
     assert(size(x1, 1) == size(x2, 1), 'x1 and x2 must have the same number of rows (samples)');
 
@@ -69,7 +70,8 @@ function [clusters, pSig] = clusterTest(x1, x2, alphaThresh, alphaFA, nperm)
     end
 
     % sort tsums in order of decreasing absolute value (greatest differences first)
-    [tSums, idx] = sort(abs(tSums), 'descend');
+    [~, idx] = sort(abs(tSums), 'descend');
+    tSums = tSums(idx);
     rgs = rgs(idx, :);
     
     % Permutation testing to get null distribution
@@ -95,6 +97,7 @@ function [clusters, pSig] = clusterTest(x1, x2, alphaThresh, alphaFA, nperm)
     end
     clusters = rgs(p <= alphaFA, :);
     pSig = p(p <= alphaFA);
+    tSumsSig = tSums(p <= alphaFA);
 
 end
 

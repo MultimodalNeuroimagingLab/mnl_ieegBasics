@@ -1,8 +1,8 @@
 %% This function returns channels that are non-recording.
 %
-%   chsNR = getChsNR(channels, electrodes);
-%   [chsNR, chNamesNR] = getChsNR(channels, electrodes);
-%   getChsNR(channels, electrodes, true); % overwrites existing channels file with a copy that has NR channels
+%   chsNR = ieeg_getChsNR(channels, electrodes);
+%   [chsNR, chNamesNR] = ieeg_getChsNR(channels, electrodes);
+%   ieeg_getChsNR(channels, electrodes, true); % overwrites existing channels file with a copy that has NR channels
 %       
 %       electrodes      = table or char. Electrodes: either the table or the path to the table.
 %       channels        = table or char. Channels: either the channels or the path to the channels.tsv
@@ -19,7 +19,7 @@
 %   Harvey Huang, Multimodal Neuroimaging Lab, Mayo Clinic, 2022
 %
 %
-function [chsNR, chNamesNR] = getChsNR(channels, electrodes, overwrite)
+function [chsNR, chNamesNR] = ieeg_getChsNR(channels, electrodes, overwrite)
     
     if nargin < 3, overwrite = false; end
 

@@ -1,6 +1,6 @@
 % Plots multiple curves spaced out vertically by yspace
 %
-%   ys = plotTrials(tt, data, yspace, cm, Name, Value)
+%   ys = ieeg_plotTrials(tt, data, yspace, cm, Name, Value)
 %       tt =        1xt time vector
 %       data =      txn, rows are samples and columns are trials
 %       yspace =    1x1, space between each trial
@@ -11,7 +11,7 @@
 %   Returns
 %       ys =        0-value for each curve plotted
 %
-function ys = plotTrials(tt, data, yspace, labels, cm, varargin)
+function ys = ieeg_plotTrials(tt, data, yspace, labels, cm, varargin)
     
     if ~exist('labels', 'var') || isempty(labels)
         labels = repmat({''}, size(data, 2), 1); % no labels
