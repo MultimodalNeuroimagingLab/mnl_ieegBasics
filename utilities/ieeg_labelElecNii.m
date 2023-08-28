@@ -4,8 +4,8 @@
 % The first letter of each electrode name (R or L) is omitted for brevity. If electrode names contain 2 letters (e.g. OC), then they are both shown with 1-pixel space inbetween.
 % The intensity of all pixel characters saved to the nifti image is 1.
 %
-%   labelElecNii(niiPath, elecPath);
-%   vol = labelElecNii(niiPath, elecPath);
+%   ieeg_labelElecNii(niiPath, elecPath);
+%   vol = ieeg_labelElecNii(niiPath, elecPath);
 %       niiPath =       char, path to T1w nifti brain volume. This is used to get 1) the dimensions of the brain volume (image.dim) and 2) the transformation matrix (image.mat)
 %                           to go from voxel space <-> position space
 %       elecPath =      char, path to the electrodes.tsv file. Must contain columns "name", "x", "y", and "z". Electrodes with non-nan positions are assumed to 
@@ -22,7 +22,7 @@
 %
 %   HH 2022/11
 %
-function vol = labelElecNii(niiPath, elecPath)
+function vol = ieeg_labelElecNii(niiPath, elecPath)
 
     % Request path of electrodes in order to know where to save
     electrodes = readtable(elecPath, 'FileType', 'text', 'Delimiter', '\t');

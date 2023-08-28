@@ -5,7 +5,7 @@
 %   electrodes.tsv are often arbitrarily sorted. Therefore the electrodes.tsv rows must be sorted in order to plot electrode
 %   positions that correspond correctly to row indices of electrophysiological data.
 %   
-%   elecsOut = sortElectrodes(electrodes, channels, saveFile)
+%   elecsOut = ieeg_sortElectrodes(electrodes, channels, saveFile)
 %
 %       electrodes      = the electrodes to sort. Either as a table or as a filepath to electrodes.tsv file
 %       channels        = the channels that the electrodes will be sorted to (by name). Either as a table or as a filepath to electrodes.tsv file
@@ -22,7 +22,7 @@
 %   Harvey Huang, Multimodal Neuroimaging Lab, Mayo Clinic, 2021
 %   MM Updating name for saving the sorted electrodes file, January 2023
 
-function elecsOut = sortElectrodes(elecs, channels, saveFile)
+function elecsOut = ieeg_sortElectrodes(elecs, channels, saveFile)
 
     if nargin < 3, saveFile = true; end
     
