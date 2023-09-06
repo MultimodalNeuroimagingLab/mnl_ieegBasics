@@ -148,7 +148,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             obj.mefPath = mefPath;
             obj.channelsPath = channelsPath;
             obj.setSub;
-            obj.channels = readtableRmHyphens(channelsPath);
+            obj.channels = ieeg_readtableRmHyphens(channelsPath);
             obj.progress = 'Constructed object';
             
             if nargin < 3 % no events. Load later when putting into trial structure
@@ -158,7 +158,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             
             obj.eventsPath = eventsPath;
             try
-                obj.evts = readtableRmHyphens(eventsPath, 'electrical_stimulation_site', 1);
+                obj.evts = ieeg_readtableRmHyphens(eventsPath, 'electrical_stimulation_site', 1);
             catch
                 obj.evts = readtable(eventsPath, 'FileType', 'text', 'Delimiter', '\t'); % if not CCEP events
             end
@@ -250,7 +250,7 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
                 if ~isempty(obj.evts), warning('Overwriting existing events'); end
                 obj.eventsPath = eventsPath;
                 try
-                    obj.evts = readtableRmHyphens(eventsPath, 'electrical_stimulation_site', 1);
+                    obj.evts = ieeg_readtableRmHyphens(eventsPath, 'electrical_stimulation_site', 1);
                 catch
                     obj.evts = readtable(eventsPath, 'FileType', 'text', 'Delimiter', '\t'); % if not CCEP events
                 end
