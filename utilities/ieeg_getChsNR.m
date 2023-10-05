@@ -23,7 +23,7 @@ function [chsNR, chNamesNR] = ieeg_getChsNR(channels, electrodes, overwrite)
     
     if nargin < 3, overwrite = false; end
 
-    elecsSorted = sortElectrodes(electrodes, channels, false);
+    elecsSorted = ieeg_sortElectrodes(electrodes, channels, false);
     
     chsNR = find(isnan(elecsSorted.x));
     chNamesNR = elecsSorted.name(chsNR);
