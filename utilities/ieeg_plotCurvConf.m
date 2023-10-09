@@ -18,7 +18,7 @@
 %
 % HH 2021
 %
-function [h,ySEM] = ieeg_plotCurvConf(x, y, color, facealph, nboot)
+function [h,conf] = ieeg_plotCurvConf(x, y, color, facealph, nboot)
 
     if nargin < 5, nboot = []; end
     if nargin < 4 || isempty(facealph), facealph = 0.5; end
