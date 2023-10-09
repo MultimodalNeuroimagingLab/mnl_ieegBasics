@@ -4,6 +4,7 @@
 %       ieeg_plotCurvConf([], y);
 %       ieeg_plotCurvConf(x, y);
 %       h = ieeg_plotCurvConf(x, y, color, facealph)
+%       [h,conf] = ieeg_plotCurvConf(x, y, color, facealph)
 %           x =             1xn numeric, x values corresponding to each column in y. If empty (enter []), x is set to
 %                               1 ... <number of col in y> by default
 %           y =             mxn numeric, data to calculate 95% confidence interval on. Rows correspond to individual
@@ -13,10 +14,11 @@
 %
 %   RETURNS:
 %           h =             patch object, patch for confidence interval shading, created using fill()
+%           conf =          confidence interval
 %
 % HH 2021
 %
-function h = ieeg_plotCurvConf(x, y, color, facealph, nboot)
+function [h,ySEM] = ieeg_plotCurvConf(x, y, color, facealph, nboot)
 
     if nargin < 5, nboot = []; end
     if nargin < 4 || isempty(facealph), facealph = 0.5; end
