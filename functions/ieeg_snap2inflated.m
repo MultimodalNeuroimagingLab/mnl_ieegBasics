@@ -45,7 +45,17 @@ for kk = 1:height(loc_info)
         if isempty(this_Destrieux_label)
             this_Destrieux_label = NaN;
         end
+    elseif iscell(loc_info.Destrieux_label)
+        if isstring(loc_info.Destrieux_label{kk})
+            this_Destrieux_label = str2num(loc_info.Destrieux_label{kk});
+            if isempty(this_Destrieux_label)
+                this_Destrieux_label = NaN;
+            end
+        else
+            this_Destrieux_label = loc_info.Destrieux_label{kk};
+        end
     end
+
     % check for left or right
     if strcmp(loc_info.hemisphere{kk},'R')
         
