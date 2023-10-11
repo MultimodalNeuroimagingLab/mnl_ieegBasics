@@ -15,9 +15,9 @@
 %   which leads are segmented by 5s or 6s, and the cross-segment pairs will not be returned in the bipolar output.
 %
 %   Usage:
-%   [dataOut, bipolarChans] = ieeg_bipolarSEEG(dataIn, channelNames, []);
-%   [dataOut, bipolarChans, badChans] = ieeg_bipolarSEEG(dataIn, channelNames, badChans);
-%   [dataOut, bipolarChans, badChans] = ieeg_bipolarSEEG(dataIn, channelNames, badChans, seg5, seg6);
+%   [dataOut, bipolarNames] = ieeg_bipolarSEEG(dataIn, channelNames, []);
+%   [dataOut, bipolarNames, bipolarChans, badChans] = ieeg_bipolarSEEG(dataIn, channelNames, badChans);
+%   [dataOut, bipolarNames, bipolarChans, badChans] = ieeg_bipolarSEEG(dataIn, channelNames, badChans, seg5, seg6);
 %       dataIn =            txn double. Signal data: rows are samples, columns are channels.
 %       channelNames =      nx1 cell{char array}. Channel names must be in the same order as columns of <dataIn>. See
 %                               the first paragraph of the documentation above for how channel names should be formatted.
@@ -33,6 +33,7 @@
 %       bipolarNames =      bx1 cell. channel pair names corresponding to columns in <dataOut>.
 %                               The names take the form 'ch1-ch2' to represent which pair of channels
 %                               are used for the derivation. E.g. 'LA1-LA2' means data from 'LA1' minus data from 'LA2'
+%       bipolarChans =      bx2 num. Channel numbers from dataIn used to derive the bipolar-rereferenced dataOut.
 %       badChansOut =       px1 num, p <= b. Indices of bipolar rereferenced channels that are bad because they contain channels in <badChans>
 %
 %   Example:
@@ -56,7 +57,7 @@
 %
 %   HH 2023
 %
-function [dataOut, bipolarNames, badChansOut] = ieeg_bipolarSEEG(dataIn, channelNames, badChans, seg5, seg6, verbose)
+function [dataOut, bipolarNames, bipolarChans, badChansOut] = ieeg_bipolarSEEG(dataIn, channelNames, badChans, seg5, seg6, verbose)
 
     if nargin < 6, verbose = true; end
     if nargin < 5 || isempty(seg6), seg6 = {}; end % no 6-segmented leads
@@ -126,6 +127,7 @@ function [dataOut, bipolarNames, badChansOut] = ieeg_bipolarSEEG(dataIn, channel
     dataOut = dataIn(:, minuend) - dataIn(:, subtrahend);
     badChansOut = find(ismember(minuend, badChans) | ismember(subtrahend, badChans)); % determine which channels are bad
     bipolarNames = join([channelNames(minuend), channelNames(subtrahend)], '-');
+    bipolarChans = [minuend, subtrahend];
         
     if verbose, fprintf('Constructed %d bipolar channels, %d of which are bad.\n', length(minuend), length(badChansOut)); end
     
