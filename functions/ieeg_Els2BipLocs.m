@@ -29,8 +29,8 @@ for kk = 1:length(bipolarChans)
     % check length of split - should be 2 electrodes, assuming they do not
     % have a '-' in it
     if length(these_els)==2
-        el_nr1 = find(ismember(loc_info.name,these_els{1}));
-        el_nr2 = find(ismember(loc_info.name,these_els{2}));
+        el_nr1 = find(strcmpi(loc_info.name,these_els{1}));
+        el_nr2 = find(strcmpi(loc_info.name,these_els{2}));
         if ~isempty(el_nr1)
             pos12 = [loc_info.x([el_nr1 el_nr2]) loc_info.y([el_nr1 el_nr2]) loc_info.z([el_nr1 el_nr2])];
             bip_locs(kk,:,:) = pos12';
