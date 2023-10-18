@@ -157,5 +157,6 @@ end
 
 seizLabs(cellfun(@isempty, seizLabs)) = {'n/a'};
 T.seizure_zone = seizLabs; % will overwrite if column already exists
+T = bids_tsv_nan2na(T); % convert nans to na
 writetable(T, elecPath, 'FileType','text','Delimiter','\t');
 fprintf('\nLabeled table successfully saved to:\n%s\n', elecPath);
