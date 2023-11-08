@@ -29,6 +29,8 @@ function tH = ieeg_RenderGiftiLabels(g,vert_label,cmapInput,roiNames,varargin)
 %
 % DH 2017
 
+vert_label = vert_label(:); % flatten
+
 if ischar(cmapInput)
     eval(['cmap =' cmapInput '(max(vert_label));']);
 elseif isnumeric(cmapInput)
