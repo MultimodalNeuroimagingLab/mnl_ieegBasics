@@ -17,7 +17,7 @@
 %   Usage:
 %   [dataOut, bipolarNames] = ieeg_bipolarSEEG(dataIn, channelNames, []);
 %   [dataOut, bipolarNames, bipolarChans, badChans] = ieeg_bipolarSEEG(dataIn, channelNames, badChans);
-%   [dataOut, bipolarNames, bipolarChans, badChans] = ieeg_bipolarSEEG(dataIn, channelNames, badChans, seg5, seg6);
+%   [dataOut, bipolarNames, bipolarChans, badChans] = ieeg_bipolarSEEG(dataIn, channelNames, badChans, seg5, seg6, verbose);
 %       dataIn =            txn double. Signal data: rows are samples, columns are channels.
 %       channelNames =      nx1 cell{char array}. Channel names must be in the same order as columns of <dataIn>. See
 %                               the first paragraph of the documentation above for how channel names should be formatted.
@@ -26,6 +26,7 @@
 %       seg5 =              (optional) char or cell array of char. List of leads that are segmented in groups of 5. E.g., 'LA'. Bipolar pairs that cross segments
 %                               will not be included in the output
 %       seg6 =              (optional) char or cell array of char. List of leads that are segmented in groups of 6.
+%       verbose =           (optional) whether to display outputs (Default = true)
 %
 %   Returns:
 %       dataOut =           txb double. Bipolar-referenced signal data. Rows are samples, columns are bipolar re-referenced
