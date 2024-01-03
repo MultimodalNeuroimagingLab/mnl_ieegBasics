@@ -73,7 +73,7 @@
 %   >> mefObj = ccep_PreprocessMef(mefPath, channelsPath, eventsPath);   % construct ccep_PreprocessMef object, with eventsPath
 %   >> mefObj.filterEvents('electrical_stimulation_current', {'4.0 mA', '6.0 mA'}); % keep only events with stim current == 4.0 or 6.0 mA
 %   >> mefObj.loadMefTrials([-1, 2]);                               % load mef data for each trial from -1 to 2s around onset
-%   >> mefObj.car(true);                                            % apply common average reference by 64-ch block
+%   >> mefObj.car(64);                                              % apply common average reference by 64-ch block
 %   >> mefObj.pruneChannels(1:20);                                  % keep only the first 20 channels
 %   >> mefObj.removeLN('SpectrumEstimation');                       % remove line noise using spectrum interpolation method
 %   >> mefObj.subtractBaseline([-0.5, -0.05]);                      % subtract baseline from each trial calculated as the mean from -0.5s to -0.05s
@@ -91,7 +91,7 @@
 %   >> mefObj.highpass;                                             % apply high-pass filter to each channel
 %   >> mefObj.removeLN('notch');                                    % remove line noise from each channel using notch filter
 %   >> mefObj.loadMefTrials([-1.5, 2.5], eventsPath);               % convert dataAll to trial structure, from -1.5 to 2.5s around onset. eventsPath needed because it wasn't given at construction
-%   >> mefObj.car;                                                  % apply common average reference without restricting to 64-ch blocks
+%   >> mefObj.car;                                                  % apply common average reference without restricting to any blocks
 %   >> mefObj.subtractBaseline([-1, -0.005], 'median');             % subtract baseline from each trial calculated as the median from -1s to -0.005s
 %   >> mefObj.progress;                                             % display preprocessing progress
 %   >> mefObj.plotInputs({'RA1', 'RA2', 'RC4'}, [-0.1, 1]);         % open plots of incoming CCEPs to 3 channels for inspection, from -0.1s to 1s around trial onset
@@ -111,6 +111,9 @@
 % 2023/04/17
 %   - plotOutputs now only plots SEEG and ECOG channels
 %   - implemented bipolar re-referencing method based on ieeg_bipolarSEEG.m from mnl_ieegBasics
+% 2023/12/28
+%   - car now applies ccep_CARVariance when obj.data is present, using default options (bottom 25% channels by cov for each stim pair)
+%   - car can now be applied by block on obj.data OR obj.dataAll, and number of channels in each block depends on user input. Input "true" is still 64, for backwards compat.
 %
 %  	References discussing whether high pass filtering and baseline subtraction should be done:
 %       Delorme, A. (2023). EEG is better left alone. Scientific Reports, 13(1), 2372.
@@ -295,35 +298,124 @@ classdef ccep_PreprocessMef < matlab.mixin.Copyable % allow shallow copies
             end
         end
         
-        function car(obj, by64)
-        %   Common average rereferencing. If mefObj.dataAll exists, this call applies ieeg_car from mnl_ieegBasics, across all channels with 'status'=='good'.
-        %   If mefObj.data exists, this call applies ccep_CAR or ccep_CAR64blocks from mnl_ieegBasics on each trial separately.
+        function car(obj, blockSize)
+        %   Common average rereferencing. If mefObj.dataAll exists, this call applies ieeg_car from mnl_ieegBasics, across all channels with 'status' == 'good'.
+        %   If mefObj.data exists, this call applies ccep_CARVariance from mnl_ieegBasics on each trial separately. Option to apply CAR separately by headbox block (see below)
         %   This CANNOT be performed on a concatenated ccep_PreprocessMef object (ccep_PreprocessMef.catMef below), and SHOULD NOT be performed after mefObj.pruneChannels is called.
         %   >> mefObj.car;
-        %   >> mefObj.car(by64);
-        %       by64 =                  (optional) logical, default = false. If true, ccep_CAR64blocks is used instead of ccep_CAR, which applies a separate rereference
-        %                                   to each contiguous block of 64 SEEG channels. Both functions threshold channels that form the reference by early variance and 
-        %                                   late variance criteria. This input is ignored if trial structure data (mefObj.data) doesn't exist (since ieeg_car is used)
-            if nargin < 2, by64 = false; end
+        %   >> mefObj.car(blockSize);
+        %       blockSize =                 (optional) numerical. If given, ieeg_car or ccep_CARVariance is applied to each contiguous block of channels (of given size)
+        %                                   separately and then concatenated at the end.
+            
+            if nargin < 2, blockSize = []; % no block requested
+            elseif islogical(blockSize) && blockSize % legacy "true" input to boolean "by64" variable, convert to 64
+                warning('Using blockSize == 64 (legacy). Recommend specifying a numerical blockSize instead of true');
+                blockSize = 64;
+            elseif islogical(blockSize) && ~blockSize % legacy "false" input to boolean "by64" variable
+                warning('Specifying "false" blockSize is deprecated. Recommend giving blank input [] or not giving second input');
+                blockSize = [];
+            end
+
             assert(~obj.concatenated, 'Common average rereferencing cannot be performed after concatenating multiple ccep_PreprocessMef objects');
             if ~isempty(obj.chsPruned), warning('Applying CAR after pruning channels may be inaccurate!!'); end
             
             if ~isempty(obj.dataAll) && isempty(obj.data)
-                warning('Applying ieeg_car to dataAll because trial data hasn''t been created. by64 input ignored');
-                chans2incl = find(strcmpi(obj.channels.type, 'SEEG') & strcmpi(obj.channels.status, 'good'));
-                obj.dataAll = ieeg_car(obj.dataAll', chans2incl)';
-                obj.progress = sprintf('%s\n> Common average rereference', obj.progress);
-            elseif isempty(obj.dataAll) && ~isempty(obj.data)
-                if by64
-                    assert(isempty(obj.chsPruned), 'Cannot apply 64-SEEG-ch block CAR after pruning channels');
-                    disp('Applying CAR by 64-SEEG-ch block to trial data');
-                    obj.data = ccep_CAR64blocks(obj.data, obj.tt, obj.channels, obj.evts.electrical_stimulation_site);
-                    obj.progress = sprintf('%s\n> Common average rereference by 64-SEEG-ch block', obj.progress);
+
+                if ~isempty(blockSize)
+                    fprintf('Applying ieeg_car by block (%d Chs each) to dataAll as trial data hasn''t been created.\n', blockSize);
+                    assert(isempty(obj.chsPruned), 'Cannot apply by-block CAR after pruning channels');
+                    assert(~any(strcmpi(obj.channels.type, 'ECOG')), 'Error: by-block rereferencing would ignore ECoG channels present');
+                
+                    % by-block referencing should only be applied to SEEG channels, and if they are contiguous
+                    seegChs = find(strcmpi(obj.channels.type, 'SEEG'));
+                    if ~all(diff(seegChs) == 1) || seegChs(1) ~= 1
+                        warning('SEEG Channels do not start at 1 or are non-contiguous, by-block referencing may be INACCURATE!');
+                    elseif length(seegChs) <= blockSize
+                        warning('There are fewer total SEEG channels than blockSize specified. Output will be identical to non-block CAR');
+                    end
+
+                    % perform ieeg_car separately for each block
+                    nBlocks = ceil(length(seegChs)/blockSize);
+                    for ii = 1:nBlocks
+                        lastCh = min(ii*blockSize, length(seegChs)); % check if the end of all channels reached
+                        chs2Ref = seegChs((ii-1)*blockSize+1 : lastCh);
+                        fprintf('Block %d (%d channels):\n', ii, length(chs2Ref));
+                        if length(chs2Ref) == 1, error('Cannot rereference %dth block with single channel', ii);
+                        elseif length(chs2Ref) < 10, warning('Fewer than 10 channels in %dth block to be rereferenced', ii);
+                        end
+
+                        chans2inclBlock = find(strcmpi(obj.channels.status(chs2Ref), 'good'));
+                        obj.dataAll(chs2Ref, :) = ieeg_car(obj.dataAll(chs2Ref, :)', chans2inclBlock)';
+                    end
+                    obj.progress = sprintf('%s\n> Common average rereference by SEEG block (%d Chs each)', obj.progress, blockSize);
+
                 else
-                    disp('Applying CAR to trial data');
-                    obj.data = ccep_CAR(obj.data, obj.tt, obj.channels, obj.evts.electrical_stimulation_site);
+                    fprintf('Applying ieeg_car to dataAll as trial data hasn''t been created.\n');
+                    chans2incl = find(strcmpi(obj.channels.type, 'SEEG') & strcmpi(obj.channels.status, 'good'));
+                    obj.dataAll = ieeg_car(obj.dataAll', chans2incl)';
                     obj.progress = sprintf('%s\n> Common average rereference', obj.progress);
                 end
+            
+            elseif isempty(obj.dataAll) && ~isempty(obj.data)
+                
+                if ~isempty(blockSize)
+                    fprintf('Applying CAR by block (%d Chs each) to trial data (SEEG channels only)\n', blockSize);
+                    assert(isempty(obj.chsPruned), 'Cannot apply by-block CAR after pruning channels');
+                    assert(~any(strcmpi(obj.channels.type, 'ECOG')), 'Error: by-block rereferencing would ignore ECoG channels present');
+                    
+                    % previous implementation, before using ccep_CARVariance
+                    %obj.data = ccep_CAR64blocks(obj.data, obj.tt, obj.channels, obj.evts.electrical_stimulation_site);
+
+                    % by-block referencing should only be applied to SEEG channels, and if they are contiguous
+                    seegChs = find(strcmpi(obj.channels.type, 'SEEG'));
+                    if ~all(diff(seegChs) == 1) || seegChs(1) ~= 1
+                        warning('SEEG Channels do not start at 1 or are non-contiguous, by-block referencing may be INACCURATE!');
+                    elseif length(seegChs) <= blockSize
+                        warning('There are fewer total SEEG channels than blockSize specified. Output will be identical to non-block CAR');
+                    end
+                    
+                    % re-reference grouped by stim site, nan-out the stimulated channel pair for each trial
+                    grp = obj.evts.electrical_stimulation_site; 
+                    for gg = 1:length(grp)
+                        chsStim = split(grp{gg}, '-');
+                        obj.data(ismember(obj.channels.name, chsStim), :, gg) = nan;
+                    end
+
+                    % perform CARVariance separately for each block of SEEG channels
+                    nBlocks = ceil(length(seegChs)/blockSize);
+                    for ii = 1:nBlocks
+                        lastCh = min(ii*blockSize, length(seegChs)); % check if the end of all channels reached
+                        chs2Ref = seegChs((ii-1)*blockSize+1 : lastCh); % indices of channels in curr block to ref
+                        fprintf('Block %d (%d channels):\n', ii, length(chs2Ref));
+                        if length(chs2Ref) == 1, error('Cannot rereference %dth block with single channel', ii);
+                        elseif length(chs2Ref) < 10, warning('Fewer than 10 channels in %dth block to be rereferenced', ii);
+                        end
+
+                        badChsBlock = find(~strcmpi(obj.channels.status(chs2Ref), 'good'));
+                        obj.data(chs2Ref, :, :) = ccep_CARVariance(obj.tt, obj.data(chs2Ref, :, :), obj.srate, badChsBlock, grp);
+                    end
+
+                    obj.progress = sprintf('%s\n> Common average rereference by SEEG block (%d Chs each)', obj.progress, blockSize);
+                
+                else
+                    disp('Applying CAR using bottom 25% cov channels (per stim site) to trial data');
+                    
+                    % previous implementation, before using ccep_CARVariance
+                    %obj.data = ccep_CAR(obj.data, obj.tt, obj.channels, obj.evts.electrical_stimulation_site);
+
+                    badChs = find(~strcmpi(obj.channels.status, 'good') | ~ismember(upper(obj.channels.type), {'SEEG', 'ECOG'}));
+
+                    % re-reference grouped by stim site, nan-out the stimulated channel pair for each trial
+                    grp = obj.evts.electrical_stimulation_site;
+                    for gg = 1:length(grp)
+                        chsStim = split(grp{gg}, '-');
+                        obj.data(ismember(obj.channels.name, chsStim), :, gg) = nan;
+                    end
+
+                    obj.data = ccep_CARVariance(obj.tt, obj.data, obj.srate, badChs, grp);
+                    obj.progress = sprintf('%s\n> Common average rereference with bottom 25% cov channels per stim site', obj.progress);
+                end
+
             else, error('Either dataAll or data (not both) needs to exist');
             end
         end
