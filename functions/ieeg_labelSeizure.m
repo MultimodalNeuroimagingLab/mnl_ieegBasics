@@ -8,7 +8,7 @@
 %     "EarlyPropagationZone": "Region of cortex that generates the initial seizure symptoms. Not seizure onset, but the propagation of seizure from SOZ into this region within first 3 seconds from seizure onset.",
 %     "Resected": "Region of cortex that was resected",
 %     "ResectedEdge": "Region of cortex that is within 1 cm of the edge of the resected area."
-% Mutually exlusive (warning will appear for electrodes with mutually exclusive labels):
+% Mutually exclusive (warning will appear for electrodes with mutually exclusive labels):
 %       "SOZ" & "IrritativeZone"
 %       "SOZ" & "EarlyPropagationZone"
 %       "Resected" & "ResectedEdge"
