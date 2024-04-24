@@ -43,11 +43,13 @@
 %
 function [mni_coords, vertIdxFsavg, minDists, surfUsed] = ieeg_mni305ThroughFsSphere(elecmatrix, hemi, FSdir, FSsubjectsdir, surfaceChoice, distLim)
     
-    if isempty(distLim)
+    % default distance is infinite if not given or empty
+    if nargin < 6 || isempty(distLim)
         distLim = inf;
     end
     
-    if isempty(surfaceChoice)
+    % default surface to use is pial if not given or empty
+    if nargin < 5 || isempty(surfaceChoice)
         surfaceChoice = 'pial';
     end
     assert(any(strcmpi(surfaceChoice, {'pial', 'white', 'closest'})), 'Error: surfaceChoice must be "pial", "white", or "closest"');
