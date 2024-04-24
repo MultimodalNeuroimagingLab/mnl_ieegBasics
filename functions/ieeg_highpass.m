@@ -1,4 +1,4 @@
-%  Highpass filters the data to deal with DC
+ %  Highpass filters the data to deal with DC
 %
 %  [signal_hp] = ieeg_highpass(signal, srate, silent)
 % 

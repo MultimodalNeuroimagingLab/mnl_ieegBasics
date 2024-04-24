@@ -20,3 +20,6 @@ desktop.ini
 # Do not safe data files
 *.mat
 
+# local deprecated directories
+deprecated
+

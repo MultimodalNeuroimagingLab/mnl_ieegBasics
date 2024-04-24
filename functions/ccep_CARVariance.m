@@ -92,7 +92,7 @@ function [Vout, chsUsed] = ccep_CARVariance(tt, V, srate, badChs, grp, optsIn)
     nChs = size(VgoodChs, 1);
     fprintf('%d good channels out of %d total channels considered for CAR\n', nChs, size(V, 1));
     
-    fprintf('Opts: %d percent of channels, [%0.03f - %0.03f] ms window, using %s, notchFirst=%s\n', ...
+    fprintf('Opts: %d percent of channels, [%0.03f - %0.03f] s window, using %s, notchFirst=%s\n', ...
         opts.pctthresh, opts.winresp(1), opts.winresp(2), opts.vartype, string(opts.notchfirst));
         
     %% Apply notch filter to reduce line noise (if requested)
