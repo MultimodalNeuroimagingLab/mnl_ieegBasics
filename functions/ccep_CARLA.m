@@ -238,7 +238,7 @@ function [Vout, CA, stats] = ccep_CARLA(tt, V, srate, badChs, optsIn)
         nMin = ceil(0.1*nChs); % minimum number of channels to start at, for stability. Hardcoded at 10 %
         zMMxTrs = mean(stats.zMinMean(1, :, :), 3); % mean ZMinMean across bootstrapped samples for each n
         
-        ii = nMin;
+        ii = max(nMin, 2);
         while ii <= nChs
             
             if ii == nChs % at the end. no more comparisons needed
