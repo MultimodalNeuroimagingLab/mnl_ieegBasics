@@ -31,7 +31,7 @@ for kk = 1:length(bipolarChans)
     if length(these_els)==2
         el_nr1 = find(strcmpi(loc_info.name,these_els{1}));
         el_nr2 = find(strcmpi(loc_info.name,these_els{2}));
-        if ~isempty(el_nr1)
+        if ~isempty(el_nr1) && ~isempty(el_nr2)
             pos12 = [loc_info.x([el_nr1 el_nr2]) loc_info.y([el_nr1 el_nr2]) loc_info.z([el_nr1 el_nr2])];
             bip_locs(kk,:,:) = pos12';
 
@@ -44,6 +44,12 @@ for kk = 1:length(bipolarChans)
         end
     else
         disp([bipolarChans{kk} ' not included - missing 2 electrodes']) % checking whether there are 2 electrodes
+    end
+end
+
+for kk = 1:length(bipolarChans)
+    if isempty(hemisphere{kk})
+        hemisphere{kk} = 'n/a';
     end
 end
 
