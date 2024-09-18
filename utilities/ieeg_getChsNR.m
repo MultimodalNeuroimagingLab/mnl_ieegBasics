@@ -34,13 +34,24 @@ function [chsNR, chNamesNR] = ieeg_getChsNR(channels, electrodes, overwrite)
         channels = readtable(channels, 'Filetype', 'text', 'Delimiter', '\t');
         statusCurr = channels.status;
         
-        status = repmat({'good'}, height(channels), 1);
+        %status = repmat({'good'}, height(channels), 1);
+        % keep existing status column
+        status = statusCurr;
         status(chsNR) = {'bad'};
-        status(ismember(channels.type, {'EKG', 'ECG', 'MISC'})) = {'good'}; % reset the EKG and MISC channels to good
         
+        %status(ismember(channels.type, {'EKG', 'ECG', 'MISC'})) = {'good'}; % reset the EKG and MISC channels to good
+        status(ismember(channels.type, {'EKG', 'ECG', 'MISC'})) = statusCurr(ismember(channels.type, {'EKG', 'ECG', 'MISC'})); % reset the EKG and MISC channels to what they were
+        
+        % which channels are being changed
+        statusDiff = find(~strcmp(statusCurr, status));
+
         % check with user before overwriting if there are currently bad channels present and the status column is different than what will be saved
-        if ~all(strcmp(status, statusCurr)) && any(strcmp(statusCurr, 'bad'))
-            answer = questdlg(sprintf('There are currently bad channels marked different from this output.\nOVERWRITE?'), ...
+        if all(strcmp(status, statusCurr))
+            fprintf('No new non-recording channel marked as bad. Nothing to change or save\n');
+            return
+            
+        elseif any(strcmp(statusCurr, 'bad')) && any(strcmp(status, 'bad'))
+            answer = questdlg(sprintf('There are already bad channels marked in this file. You would ADD %d bad channel(s)\nOVERWRITE?', length(statusDiff)), ...
                               'Overwrite channels', 'Yes, OVERWRITE', 'No, cancel', 'No, cancel');
             if ~strcmp(answer, 'Yes, OVERWRITE'), disp('Exited'); return; end
         end
