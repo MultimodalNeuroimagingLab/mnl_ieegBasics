@@ -46,7 +46,7 @@ elseif ~isempty(varargin)
     c(sulcal_labels<0,:) = 0.7;
 end
 
-for k = 1:max(vert_label)
+for k = 1:ceil(max(vert_label))
     c(ceil(vert_label)==k,:) = repmat(cmap(k,:),length(find(ceil(vert_label)==k)),1);
 end
 
