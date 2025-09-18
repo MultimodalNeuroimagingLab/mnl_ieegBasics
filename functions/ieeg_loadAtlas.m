@@ -1,4 +1,4 @@
-function [vert_label, area_label, cmap] = loadAtlas(freesurferPath, hemi, atlasName)
+function [vert_label, area_label, cmap] = ieeg_loadAtlas(freesurferPath, hemi, atlasName)
 
 % function to load Brain Atlas
 % 
@@ -14,7 +14,7 @@ function [vert_label, area_label, cmap] = loadAtlas(freesurferPath, hemi, atlasN
 %     
 %
 % Example usage:
-%   [vert_label, area_label, cmap] = loadAtlas(freesurferPath, 'r', 'BensonV')
+%   [vert_label, area_label, cmap] = ieeg_loadAtlas(freesurferPath, 'r', 'BensonV')
 % 
 % ZQ 2023
 %
