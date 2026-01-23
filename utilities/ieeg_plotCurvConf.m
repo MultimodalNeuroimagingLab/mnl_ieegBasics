@@ -29,14 +29,14 @@ function [h,conf] = ieeg_plotCurvConf(x, y, color, facealph, nboot)
     nTrials = size(y, 1);
     assert(length(x) == size(y, 2), 'x must have same length as number of columns in y');
     
-    yMean = mean(y); % bootstrapped confidence interval
+    yMean = mean(y, 'omitnan'); % bootstrapped confidence interval
     
     if nboot % bootstrapped confidence interval
         assert(isa(nboot, 'double'), 'nboot input must be given as a number (of samples to bootstrap)')
-        bootstat = bootstrp(nboot, @mean, y);
+        bootstat = bootstrp(nboot, @(x) mean(x, 'omitnan'), y);
         conf = [prctile(bootstat, 2.5), prctile(bootstat(:, end:-1:1), 97.5)];
     else
-        ySEM = std(y)/sqrt(nTrials);
+        ySEM = std(y, 'omitnan')/sqrt(nTrials);
         ts = tinv([0.025, 0.975], nTrials - 1); % n-1 degrees of freedom
         conf = [yMean+ts(1)*ySEM, yMean(end:-1:1)+ts(2)*ySEM(end:-1:1)];
     end

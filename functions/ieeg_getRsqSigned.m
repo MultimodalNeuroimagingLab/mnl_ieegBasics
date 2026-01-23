@@ -41,6 +41,7 @@ function [rsq, p, stats] = ieeg_getRsqSigned(x1, x2, plotSamps)
     SSres = n1*var(x1, 1) + n2*var(x2, 1); % residual sum of squares using respective means
 
     rsq = 1 - (SSres/SStot);
+    rsq = max(0, rsq); % for the sign interpretation to make sense must floor rsq at 0
 
     if mean(x1) < mean(x2), rsq = -rsq; end % invert sign if mean of second vector larger than first vector
     
