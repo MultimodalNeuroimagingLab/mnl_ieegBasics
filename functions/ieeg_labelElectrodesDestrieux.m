@@ -1,4 +1,4 @@
-function [t_new] = ieeg_labelElectrodesDestrieux(FSdir, electrodes_tsv_name, saveNew, circleradius)
+function [t_new] = ieeg_labelElectrodesDestrieux(FSdir, electrodes_tsv_name, saveNew, circleradius,varargin)
 %
 % this script labels electrodes based on the Destrieux Atlas from
 % Freesurfer
@@ -21,12 +21,20 @@ function [t_new] = ieeg_labelElectrodesDestrieux(FSdir, electrodes_tsv_name, sav
 if nargin < 4 || isempty(circleradius), circleradius = 3; end
 if nargin < 3 || isempty(saveNew), saveNew = false; end
 
+if isempty(varargin)
+    main_FS_dir = FSdir;
+else
+    if ~isempty(varargin{1})
+        main_FS_dir = varargin{1};
+    end
+end
+
 % load electrode positions
 loc_info = readtable(electrodes_tsv_name, 'FileType','text','Delimiter','\t','TreatAsEmpty',{'N/A','n/a'});
 
 elecmatrix = [loc_info.x loc_info.y loc_info.z];
 
-[Destrieux_label_text, Destrieux_label] = ieeg_getLabelXyzDestrieux(elecmatrix, FSdir, circleradius); % get Destrieux labels
+[Destrieux_label_text, Destrieux_label] = ieeg_getLabelXyzDestrieux(elecmatrix, FSdir, circleradius, main_FS_dir); % get Destrieux labels
 
 % append/edit Destrieux columns to loc_info
 if ~ismember('Destrieux_label', loc_info.Properties.VariableNames)

@@ -8,6 +8,8 @@
 %       xyzs =              nx3 array of n [x, y, z] coordinates
 %       FSdir =             path to FreeSurfer directory for the current subject; e.g. */derivatives/freesurfer/sub-<subject>
 %       rad (optional) =    radius in mm to search for labels. 3 by default
+%       main_FS_dir =    main freesurfer directory in case local
+%                           FS dir does not contain aseg.auto_noCCseg.label_intensities.txt
 %
 %   Returns:
 %       labs =              nx1 cell array of string labels, corresponding to each xyz coordinate
@@ -16,18 +18,27 @@
 %   Adapted from 'mnl_ieegBasics/functions/ieeg_labelElectrodesDestrieux.m' on 11/12/2020 by HH
 %
 
-function [labs, labs_val] = ieeg_getLabelXyzDestrieux(xyzs, FSdir, rad)
+function [labs, labs_val] = ieeg_getLabelXyzDestrieux(xyzs, FSdir, rad, varargin)
     if nargin < 3, rad = 3; end % circle radius
-    
+
+    if isempty(varargin)
+        subcortical_labels = readtable(fullfile(FSdir,'mri',...
+            'aseg.auto_noCCseg.label_intensities.txt'),...
+            'FileType','text','Delimiter',' ','ReadVariableNames',false,'HeaderLines',0);
+    else
+        if ~isempty(varargin{1})
+            subcortical_labels = readtable(fullfile(varargin{1},'subjects','bert','mri',...
+                'aseg.auto_noCCseg.label_intensities.txt'),...
+                'FileType','text','Delimiter',' ','ReadVariableNames',false,'HeaderLines',0);
+        end
+    end
+
     %% load files
     niDestrieux = niftiRead(fullfile(FSdir, 'mri', 'aparc.a2009s+aseg.nii.gz')); % labelled nifti
 
     [~, ~, colortable_Destrieux] = read_annotation(fullfile(FSdir, 'label', 'lh.aparc.a2009s.annot')); % hemisphere-agnostic; use 'l' by default
-
-    subcortical_labels = readtable(fullfile(FSdir,'mri',...
-        'aseg.auto_noCCseg.label_intensities.txt'),...
-        'FileType','text','Delimiter',' ','ReadVariableNames',false,'HeaderLines',0);
     
+
     %%
     voxelsize = niDestrieux.pixdim;
     
