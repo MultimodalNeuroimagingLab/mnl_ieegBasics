@@ -209,6 +209,27 @@ switch ky
     
 %-------------------------------
 
+    case 'bensona'
+        
+    % surface labels - Benson angle
+    % NC Benson & J Winawer. Bayesian analysis of retinotopic maps. eLife (2018) 
+
+    if ~isfile(fullfile(freesurferPath, 'surf',...
+                    [hemi 'h.benson14_varea.mgz']))
+        error('Benson labels not found!');
+    end
+
+    surface_labels = MRIread(fullfile(freesurferPath, 'surf',...
+        [hemi 'h.benson14_angle.mgz']));
+    vert_label = surface_labels.vol(:);
+
+    % load the color map 
+    cmap = jet(10^3);
+
+    area_label = 1 : max(vert_label);
+    
+%-------------------------------
+
     case 'hcp'
         
     % Surface labels - HCP MMP1 Atlas
