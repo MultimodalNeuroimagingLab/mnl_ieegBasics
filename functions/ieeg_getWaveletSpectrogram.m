@@ -39,7 +39,9 @@ function [S, f] = ieeg_getWaveletSpectrogram(V, srate, frange, method)
                 warning('Returning all integer frequencies between %d and %d using kjm implementation', frange(1), frange(2));
                 frange = frange(1):frange(2);
             end
+            tic
             S = getWavKjm(V, srate, frange);
+            toc
             f = frange;
         otherwise
             error("method must be 'cwt' (default) or 'kjm'");
@@ -63,46 +65,71 @@ function [S, f] = getWavCwt(V, srate, frange)
     S = flip(S, 1);
     
 end
-
-
+% 
 % KJM custom wavelet implementation for each column of V
 function S = getWavKjm(V, srate, frange)
     
-    S = nan(length(frange), size(V, 1), size(V, 2));
-    for ii = 1:size(V, 2)
-        S(:, :, ii) = wavelet_pac(V(:, ii), srate, frange)';
-    end
-    S = abs(S).^2; % convert to power
-    
-end
+    S = complex(nan(length(frange), size(V, 1), size(V, 2)));
 
-
-% function [wsignal]=wavelet_pac(rawsignal,srate,frange)
-% calculated wavelet fintered signal from frange (high:step:low)
-% rawsignal=signal(:,44);
-% frange=30:-1:1;
-% srate=512;
-% kjm
-function wsignal = wavelet_pac(rawsignal, srate, frange, verbose)
-
-    if nargin < 4, verbose = false; end
-
-    wsignal = zeros(length(rawsignal), length(frange));
-    fmax = frange(end);
-
+    % create wavelets
+    wvlt = [];
     for kk = 1:length(frange)
-
         f = frange(kk);
-        if mod(f, 10) == 0 && verbose, disp(['on ' num2str(f) ' of ' num2str(fmax)]), end
-
-        %create wavelet
         t = 1:floor(5*srate/f);% 5 cycles
-        wvlt = exp(1i*2*pi*f*(t-floor(max(t)/2))/srate).*gausswin(max(t))'; %gaussian envelope
-
-        %calculate convolution
-        tconv = conv(wvlt, rawsignal);
-        tconv([1:(floor(length(wvlt)/2)-1) floor(length(tconv)-length(wvlt)/2+1):length(tconv)]) = []; %eliminate edges 
-        wsignal(:, kk) = tconv;
-
+        wvlt(kk).wave = exp(1i*2*pi*f*(t-floor(max(t)/2))/srate).*gausswin(max(t))'; %gaussian envelope
     end
+
+    for ii = 1:size(V, 2)
+    
+        for kk = 1:length(frange)
+    
+            %calculate convolution
+            wsignal = conv(V(:, ii),wvlt(kk).wave, 'same');
+            
+            S(kk, :, ii) = wsignal;
+        end
+    end
+    
+    S = abs(S).^2;
 end
+
+% 
+% % KJM custom wavelet implementation for each column of V
+% function S = getWavKjm(V, srate, frange)
+%     
+%     S = nan(length(frange), size(V, 1), size(V, 2));
+%     for ii = 1:size(V, 2)
+%         S(:, :, ii) = wavelet_pac(V(:, ii), srate, frange)';
+%     end
+%     S = abs(S).^2; % convert to power
+%     
+% end
+% 
+% 
+% % function [wsignal]=wavelet_pac(rawsignal,srate,frange)
+% % calculated wavelet fintered signal from frange (high:step:low)
+% % rawsignal=signal(:,44);
+% % frange=30:-1:1;
+% % srate=512;
+% % kjm
+% function wsignal = wavelet_pac(rawsignal, srate, frange, verbose)
+% 
+%     if nargin < 4, verbose = false; end
+% 
+%     wsignal = complex(zeros(length(rawsignal), length(frange)));
+%     fmax = frange(end);
+% 
+%     for kk = 1:length(frange)
+% 
+%         f = frange(kk);
+%         if mod(f, 10) == 0 && verbose, disp(['on ' num2str(f) ' of ' num2str(fmax)]), end
+%         
+%         %create wavelet
+%         t = 1:floor(5*srate/f);% 5 cycles
+%         wvlt = exp(1i*2*pi*f*(t-floor(max(t)/2))/srate).*gausswin(max(t))'; %gaussian envelope
+%         
+%         %calculate convolution
+%         wsignal(:, kk) = conv(rawsignal,wvlt, 'same');
+% 
+%     end
+% end

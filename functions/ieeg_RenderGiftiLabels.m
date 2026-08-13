@@ -59,7 +59,8 @@ material([.3 .9 .2 50 1]);
 axis off
 set(gcf,'Renderer', 'zbuffer')
 view(270, 0);
-set(l1,'Position',[-1 0 1])
+% set(l1,'Position',[-1 0 1])
+set(l1,'Position',[1 0 1])
 
 if exist('roiNames','var')
     if ~isempty(roiNames)

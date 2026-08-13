@@ -37,22 +37,32 @@ xyz_inflated = NaN(size(elecmatrix));
 surfIndex = NaN(size(elecmatrix,1),1);
 
 for kk = 1:height(loc_info)
-    % any matter label, non right thalamic
-    if isnumeric(loc_info.Destrieux_label) % numbers and NaNs, should be fine, do nothing
-        this_Destrieux_label = loc_info.Destrieux_label(kk);
-    elseif isstring(loc_info.Destrieux_label)
-        this_Destrieux_label = str2num(loc_info.Destrieux_label{kk});
-        if isempty(this_Destrieux_label)
-            this_Destrieux_label = NaN;
-        end
-    elseif iscell(loc_info.Destrieux_label)
-        if isstring(loc_info.Destrieux_label{kk})
+
+    % if Destrieux_label exists, exclude thalamic sites
+    if ismember('Destrieux_label',loc_info.Properties.VariableNames)
+        % any matter label, non right thalamic
+        if isnumeric(loc_info.Destrieux_label) % numbers and NaNs, should be fine, do nothing
+            this_Destrieux_label = loc_info.Destrieux_label(kk);
+        elseif isstring(loc_info.Destrieux_label)
             this_Destrieux_label = str2num(loc_info.Destrieux_label{kk});
             if isempty(this_Destrieux_label)
                 this_Destrieux_label = NaN;
             end
+        elseif iscell(loc_info.Destrieux_label)
+            if isstring(loc_info.Destrieux_label{kk})
+                this_Destrieux_label = str2num(loc_info.Destrieux_label{kk});
+                if isempty(this_Destrieux_label)
+                    this_Destrieux_label = NaN;
+                end
+            else
+                this_Destrieux_label = loc_info.Destrieux_label{kk};
+            end
+        end
+    else
+        if isnan(loc_info.x(kk))
+            this_Destrieux_label = nan;
         else
-            this_Destrieux_label = loc_info.Destrieux_label{kk};
+            this_Destrieux_label = 0;
         end
     end
 
