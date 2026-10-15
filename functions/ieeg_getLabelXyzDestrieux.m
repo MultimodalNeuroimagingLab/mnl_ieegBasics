@@ -26,9 +26,12 @@ function [labs, labs_val] = ieeg_getLabelXyzDestrieux(xyzs, FSdir, rad, varargin
             'aseg.auto_noCCseg.label_intensities.txt'),...
             'FileType','text','Delimiter',' ','ReadVariableNames',false,'HeaderLines',0);
     else
-        if ~isempty(varargin{1})
+        if ~isempty(varargin{1}) && ~isequal(varargin{1},'aseg.auto_noCCseg.label_intensities.txt') % it's a path
             subcortical_labels = readtable(fullfile(varargin{1},'subjects','bert','mri',...
                 'aseg.auto_noCCseg.label_intensities.txt'),...
+                'FileType','text','Delimiter',' ','ReadVariableNames',false,'HeaderLines',0);
+        elseif ~isempty(varargin{1}) && isequal(varargin{1},'aseg.auto_noCCseg.label_intensities.txt') 
+            subcortical_labels = readtable(varargin{1},...
                 'FileType','text','Delimiter',' ','ReadVariableNames',false,'HeaderLines',0);
         end
     end

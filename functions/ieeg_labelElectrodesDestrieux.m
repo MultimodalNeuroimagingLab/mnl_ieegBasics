@@ -21,10 +21,12 @@ function [t_new] = ieeg_labelElectrodesDestrieux(FSdir, electrodes_tsv_name, sav
 if nargin < 4 || isempty(circleradius), circleradius = 3; end
 if nargin < 3 || isempty(saveNew), saveNew = false; end
 
-if isempty(varargin)
+if isempty(varargin) 
     main_FS_dir = FSdir;
 else
-    if ~isempty(varargin{1})
+    if ~isempty(varargin{1}) && ~isfile(varargin{1}) % it's a path
+        main_FS_dir = varargin{1};
+    elseif ~isempty(varargin{1}) && isfile(varargin{1}) % it's a file
         main_FS_dir = varargin{1};
     end
 end
