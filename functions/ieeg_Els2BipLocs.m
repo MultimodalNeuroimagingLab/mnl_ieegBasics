@@ -21,7 +21,7 @@ function [bip_loc_info,bip_locs,hemisphere] = ieeg_Els2BipLocs(loc_info,bipolarC
 
 % get bipolar positions that match data
 bip_locs = NaN(length(bipolarChans),3,2); % initialize
-hemisphere = cell(length(bipolarChans),1);
+hemisphere = repmat({''}, length(bipolarChans),1);
 Destrieux_label = NaN(length(bipolarChans),1);
 Destrieux_label2 = NaN(length(bipolarChans),1);
 for kk = 1:length(bipolarChans)
